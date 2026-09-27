@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { iniciarSesionServicio } from '../servicios/autenticacionServicio.js';
+import { iniciarSesionServicio } from '../servicios/autenticacionServicio.jsx';
 
 const AutenticacionContexto = createContext(null);
 
