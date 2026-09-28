@@ -1,4 +1,5 @@
 import React from 'react';
+import SideBarComponente from '../components/SidebarComponente';
 import TarjetaExperiencia from '../components/tarjetaPlanComponente';
 
 const EXPERIENCIAS_MOCK = [
@@ -24,24 +25,27 @@ const EXPERIENCIAS_MOCK = [
 
 export default function CatalogoPagina() {
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: '2.5rem',
-      padding: '3rem 2rem',
-      backgroundColor: '#e2e8f0',
-      minHeight: '100vh',
-      boxSizing: 'border-box'
-    }}>
-      {EXPERIENCIAS_MOCK.map((exp) =b1 (
-        <TarjetaExperiencia
-          key={exp.id}
-          titulo={exp.titulo}
-          precio={exp.precio}
-          descripcion={exp.descripcion}
-        />
-      ))}
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
+      <SideBarComponente />
+
+      <main style={{
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '2.5rem',
+        padding: '2rem',
+        flexWrap: 'wrap'
+      }}>
+        {EXPERIENCIAS_MOCK.map((exp) => (
+          <TarjetaExperiencia
+            key={exp.id}
+            titulo={exp.titulo}
+            precio={exp.precio}
+            descripcion={exp.descripcion}
+          />
+        ))}
+      </main>
     </div>
   );
 }
