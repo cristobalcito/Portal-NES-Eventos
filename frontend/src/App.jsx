@@ -2,7 +2,7 @@ import React from 'react';
 import Login from './Login';
 import { useState } from 'react';
 import { useEffect } from 'react';
-import CatalogoPagina from './paginas/CatalogoPagina.jsx';
+import CatalogoPagina from './pages/CatalogoPagina.jsx';
 
 function App() {
 

@@ -1,6 +1,6 @@
 import React from 'react';
-import SideBarComponente from '../components/SidebarComponente';
-import TarjetaExperiencia from '../components/tarjetaPlanComponente';
+import SideBarComponente from '../components/SidebarComponente.jsx';
+import TarjetaExperiencia from '../components/tarjetaPlanComponente.jsx';
 
 const EXPERIENCIAS_MOCK = [
   {
@@ -31,11 +31,12 @@ export default function CatalogoPagina() {
       <main style={{
         flex: 1,
         display: 'flex',
+        flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         gap: '2.5rem',
         padding: '2rem',
-        flexWrap: 'wrap'
+        overflowX: 'auto'
       }}>
         {EXPERIENCIAS_MOCK.map((exp) => (
           <TarjetaExperiencia
