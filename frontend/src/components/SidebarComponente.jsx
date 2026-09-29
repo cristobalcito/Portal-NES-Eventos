@@ -1,5 +1,8 @@
-// frontend/src/components/Sidebar.jsx
-export default function Sidebar() {
+// frontend/src/components/SidebarComponente.jsx
+import React from 'react';
+import { obtenerEstiloBoton } from '../servicios/sidebarServicio.js';
+
+export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
   const menuItems = [
     { nombre: 'Home', ruta: '/home' },
     { nombre: 'Gestionar eventos', ruta: '/eventos' },
@@ -32,6 +35,7 @@ export default function Sidebar() {
           margin: '0 auto 12px',
           fontSize: '34px'
         }}>
+
           👤
         </div>
         <p style={{ margin: 0, fontSize: '15px' }}>[Nombre de usuario]</p>
@@ -43,13 +47,13 @@ export default function Sidebar() {
           <a
             key={item.nombre}
             href={item.ruta}
-            style={{
-              padding: '14px 24px',
-              color: 'white',
-              textDecoration: 'none',
-              fontSize: '15px',
-              borderBottom: '1px solid rgba(255,255,255,0.1)'
+            onClick={(e) => {
+              if (alSeleccionar) {
+                e.preventDefault();
+                alSeleccionar(item.nombre);
+              }
             }}
+            style={obtenerEstiloBoton(item.ruta, rutaActiva)}
           >
             {item.nombre}
           </a>
