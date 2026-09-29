@@ -1,6 +1,6 @@
 // frontend/src/pages/InventarioPage.jsx
 import { useState } from 'react';
-import SidebarComponente from '../components/SidebarComponente';
+import SidebarComponente from '../components/SidebarComponente.jsx';
 
 // Datos de prueba basados en el boceto
 const PRODUCTOS_INICIALES = [
