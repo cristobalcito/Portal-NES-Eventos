@@ -1,6 +1,6 @@
 // frontend/src/pages/InventarioPage.jsx
 import { useState } from 'react';
-import Sidebar from '../components/Sidebar';
+import SidebarComponente from '../components/SidebarComponente';
 
 // Datos de prueba basados en el boceto
 const PRODUCTOS_INICIALES = [
@@ -23,7 +23,7 @@ export default function InventarioPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e9e7ec', fontFamily: 'sans-serif' }}>
       {/* 1. Barra Lateral Reutilizable */}
-      <Sidebar />
+      <SidebarComponente />
 
       {/* 2. Contenido Principal */}
       <main style={{ flex: 1, padding: '30px', boxSizing: 'border-box' }}>
