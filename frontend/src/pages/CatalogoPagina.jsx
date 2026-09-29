@@ -1,6 +1,6 @@
 import React from 'react';
 import SideBarComponente from '../components/SidebarComponente.jsx';
-import TarjetaExperiencia from '../components/tarjetaPlanComponente.jsx';
+import TarjetaPlanComponente from '../components/tarjetaPlanComponente.jsx';
 
 const EXPERIENCIAS_MOCK = [
   {
@@ -26,7 +26,7 @@ const EXPERIENCIAS_MOCK = [
 export default function CatalogoPagina() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
-      <SideBarComponente />
+      <SideBarComponente opcionActiva="Catálogo" />
 
       <main style={{
         flex: 1,
@@ -39,7 +39,7 @@ export default function CatalogoPagina() {
         overflowX: 'auto'
       }}>
         {EXPERIENCIAS_MOCK.map((exp) => (
-          <TarjetaExperiencia
+          <TarjetaPlanComponente
             key={exp.id}
             titulo={exp.titulo}
             precio={exp.precio}
