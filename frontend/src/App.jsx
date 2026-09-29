@@ -1,14 +1,17 @@
 import React from 'react';
 import Login from './Login';
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import CatalogoPagina from './pages/CatalogoPagina.jsx';
+import GestionarEventos from './pages/GestionarEventos.jsx';
+import InventarioPage from './pages/InventarioPage.jsx';
+import PersonalPagina from './pages/PersonalPagina.jsx';
+import Sidebar from './components/SidebarComponente.jsx';
 
 
 function App() {
 
     const [usuario, setUsuario] = useState(null);
-    const [seccionActual, setSeccionActual] = useState('catalogo'); // Mantiene la sección activa
+    const [seccionActual, setSeccionActual] = useState('/catalogo');
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -34,66 +37,34 @@ function App() {
         return <Login onLoginSuccess={(user) => setUsuario(user)} />;
     }
 
-    return (
-        <div style={{ minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
-            {seccionActual === 'catalogo' ? (
-                <CatalogoPagina />
-            ) : (
-                <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-                    <header
-                        style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            borderBottom: '1px solid #e5e7eb',
-                            paddingBottom: '1rem',
-                            marginBottom: '2rem',
-                        }}
-                    >
-                        <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Portal NES Eventos</h1>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <span>
-                                Hola, <strong>{usuario.nombre}</strong>
-                            </span>
-                            <button
-                                onClick={handleLogout}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    backgroundColor: '#ef4444',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                Cerrar Sesión
-                            </button>
-                        </div>
-                    </header>
+    const propsDeNavegacion = {
+        rutaActiva: seccionActual,
+        alSeleccionar: setSeccionActual,
+    };
 
-                    <main>
-                        <h3>Sesión iniciada correctamente</h3>
+    switch (seccionActual) {
+        case '/eventos':
+            return <GestionarEventos {...propsDeNavegacion} />;
+        case '/personal':
+            return <PersonalPagina {...propsDeNavegacion} />;
+        case '/inventario':
+            return <InventarioPage {...propsDeNavegacion} />;
+        case '/home':
+            return (
+                <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
+                    <Sidebar {...propsDeNavegacion} />
+                    <main style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+                        <h1>Portal NES Eventos</h1>
+                        <p>Hola, <strong>{usuario.nombre}</strong></p>
                         <p>RUT: {usuario.rut}</p>
                         <p>Email: {usuario.email}</p>
-                        <button 
-                            onClick={() => setSeccionActual('catalogo')}
-                            style={{
-                                marginTop: '1rem',
-                                padding: '0.6rem 1.2rem',
-                                backgroundColor: '#6b46c1',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            Ver Catálogo
-                        </button>
+                        <button onClick={handleLogout}>Cerrar Sesión</button>
                     </main>
                 </div>
-            )}
-        </div>
-    );
+            );
+        default:
+            return <CatalogoPagina {...propsDeNavegacion} />;
+    }
 }
 
 export default App;

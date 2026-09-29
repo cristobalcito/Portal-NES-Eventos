@@ -50,7 +50,7 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
             onClick={(e) => {
               if (alSeleccionar) {
                 e.preventDefault();
-                alSeleccionar(item.nombre);
+                alSeleccionar(item.ruta);
               }
             }}
             style={obtenerEstiloBoton(item.ruta, rutaActiva)}
