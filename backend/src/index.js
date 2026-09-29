@@ -10,6 +10,7 @@ var indexRouter = require('./rutas/index');
 var usersRouter = require('./rutas/users');
 var authRouter = require('./rutas/auth');
 var clientesRouter = require('./rutas/clientes');
+var eventosRouter = require('./rutas/eventos');
 
 var app = express();
 
@@ -24,6 +25,7 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/clientes', clientesRouter);
+app.use('/api/eventos', eventosRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));

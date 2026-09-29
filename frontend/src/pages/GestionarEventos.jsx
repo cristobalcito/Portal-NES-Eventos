@@ -1,17 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function GestionarEventos() {
+  // 1. Estado para la lista completa y el evento seleccionado
+  const [eventos, setEventos] = useState([]);
   const [eventoSeleccionado, setEventoSeleccionado] = useState({
-    nombre: 'Matrimonio de Jessica Pérez',
-    organizador: 'XXXXXX',
-    peticion: 'XXXXXXX',
-    invitados: '[VER]'
+    descripcion: 'Cargando...',
+    personal: '',
+    lugar: '',
+    numPersonas: ''
   });
+
+  // 2. Conexión al backend al cargar la página
+  useEffect(() => {
+    fetch('http://localhost:3000/api/eventos')
+      .then(respuesta => respuesta.json())
+      .then(datos => {
+        setEventos(datos);
+        // Si hay datos, mostramos el primero automáticamente en la tarjeta
+        if (datos.length > 0) {
+          setEventoSeleccionado(datos[0]);
+        }
+      })
+      .catch(error => console.error("Error al cargar eventos:", error));
+  }, []);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
       
-
       {/* Contenido Principal */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>
         
@@ -84,31 +99,36 @@ export default function GestionarEventos() {
           overflowY: 'auto',
           marginBottom: '20px'
         }}>
-          {[
-            "15/05/2030: Matrimonio de Jessica Pérez | 19:30 | Plaza de Armas",
-            "21/11/2030: Licenciatura de Alberto Gonzales | 12:00",
-            "07/12/2030: Recaudación de fondos"
-          ].map((evento, index) => (
-            <div key={index} style={{ 
-              backgroundColor: '#d499a7', 
-              borderRadius: '30px', 
-              padding: '15px 25px', 
-              marginBottom: '15px', 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              border: '1px solid black',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
-            }}>
-              <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                {evento}
-              </span>
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
-                <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>🗑️</button>
+          {eventos.length === 0 ? (
+            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>Cargando eventos desde el servidor...</p>
+          ) : (
+            eventos.map((evento, index) => (
+              <div 
+                key={index} 
+                onClick={() => setEventoSeleccionado(evento)} // 3. Al hacer clic, actualiza la tarjeta inferior
+                style={{ 
+                  backgroundColor: '#d499a7', 
+                  borderRadius: '30px', 
+                  padding: '15px 25px', 
+                  marginBottom: '15px', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  border: '1px solid black',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                  cursor: 'pointer' // Agregamos cursor pointer para que se note que es clickeable
+                }}
+              >
+                <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
+                  {new Date(evento.fecha).toLocaleDateString()} : {evento.descripcion} | {evento.lugar}
+                </span>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                  <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
+                  <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>🗑️</button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* Tarjeta inferior de Detalles */}
@@ -119,11 +139,11 @@ export default function GestionarEventos() {
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
           minHeight: '150px'
         }}>
-          <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{eventoSeleccionado.nombre}</h2>
+          <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{eventoSeleccionado.descripcion}</h2>
           <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
-            <p style={{ margin: '5px 0' }}>Organizador(a): {eventoSeleccionado.organizador}</p>
-            <p style={{ margin: '5px 0' }}>A petición de: {eventoSeleccionado.peticion}</p>
-            <p style={{ margin: '5px 0' }}>Invitados: <span style={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}>{eventoSeleccionado.invitados}</span></p>
+            <p style={{ margin: '5px 0' }}>Organizador(a): {eventoSeleccionado.personal}</p>
+            <p style={{ margin: '5px 0' }}>A petición de: {eventoSeleccionado.lugar}</p>
+            <p style={{ margin: '5px 0' }}>Invitados: <span style={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}>[{eventoSeleccionado.numPersonas} personas]</span></p>
           </div>
         </div>
         
