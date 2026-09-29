@@ -1,5 +1,4 @@
 import React from 'react';
-import SideBarComponente from '../components/SidebarComponente.jsx';
 import TarjetaPlanComponente from '../components/tarjetaPlanComponente.jsx';
 
 const EXPERIENCIAS_MOCK = [
@@ -26,7 +25,6 @@ const EXPERIENCIAS_MOCK = [
 export default function CatalogoPagina() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
-      <SideBarComponente opcionActiva="Catálogo" />
 
       <main style={{
         flex: 1,

@@ -1,6 +1,5 @@
 // frontend/src/pages/PersonalPagina.jsx
 import { useState } from 'react';
-import Sidebar from '../components/SidebarComponente.jsx';
 
 
 export default function Personal({ rutaActiva = '/personal', alSeleccionar }) {
@@ -16,7 +15,6 @@ export default function Personal({ rutaActiva = '/personal', alSeleccionar }) {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
       
       {/* Barra Lateral importada */}
-      <Sidebar rutaActiva={rutaActiva} alSeleccionar={alSeleccionar} />
 
       {/* Contenido Principal */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>

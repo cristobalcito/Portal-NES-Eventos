@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import SidebarComponente from '../components/SidebarComponente.jsx';
 
 export default function GestionarEventos() {
   const [eventoSeleccionado, setEventoSeleccionado] = useState({
@@ -12,8 +11,6 @@ export default function GestionarEventos() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
       
-      {/* Barra Lateral importada */}
-      <SidebarComponente />
 
       {/* Contenido Principal */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>
