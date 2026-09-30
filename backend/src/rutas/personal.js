@@ -5,3 +5,7 @@ const { obtenerPersonal } = require('../controladores/personalControlador');
 router.get('/', obtenerPersonal);
 
 module.exports = router;
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes

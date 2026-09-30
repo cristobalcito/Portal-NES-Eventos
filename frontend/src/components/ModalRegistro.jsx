@@ -90,7 +90,11 @@ export default function ModalRegistro({ isOpen, tipo = 'persona', onClose, onGua
             <>
               <div>
                 <label style={labelStyle}>Nombre Completo:</label>
+<<<<<<< Updated upstream
                 <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required style={inputStyle} placeholder="Ej: Juan Pérez" />
+=======
+                <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required style={inputStyle} placeholder="Ej: Leandro Flores" />
+>>>>>>> Stashed changes
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -187,4 +191,9 @@ const inputStyle = {
   fontSize: '14px',
   boxSizing: 'border-box',
   outline: 'none'
+<<<<<<< Updated upstream
 };
+=======
+};
+
+>>>>>>> Stashed changes

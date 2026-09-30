@@ -98,17 +98,28 @@ export default function PersonalPagina() {
             )}
           </div>
           
+<<<<<<< Updated upstream
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
             <button style={{ 
               backgroundColor: '#8a5b96', color: 'white', border: 'none', 
               padding: '8px 18px', fontSize: '14px', borderRadius: '25px', 
+=======
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginLeft: '20px' }}>
+            <button style={{ 
+              backgroundColor: '#8a5b96', color: 'white', border: 'none', 
+              padding: '5px 18px', fontSize: '14px', borderRadius: '25px', 
+>>>>>>> Stashed changes
               fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}>
               Buscar personal
             </button>
             <button style={{ 
               backgroundColor: '#8a5b96', color: 'white', border: 'none', 
+<<<<<<< Updated upstream
               padding: '8px 18px', fontSize: '14px', borderRadius: '25px', 
+=======
+              padding: '5px 18px', fontSize: '14px', borderRadius: '25px', 
+>>>>>>> Stashed changes
               fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}>
               Buscar clientes
@@ -117,7 +128,11 @@ export default function PersonalPagina() {
               onClick={() => setMostrarModal(true)}
               style={{ 
                 backgroundColor: '#8a5b96', color: 'white', border: 'none', 
+<<<<<<< Updated upstream
                 padding: '8px 18px', fontSize: '14px', borderRadius: '25px', 
+=======
+                padding: '5px 18px', fontSize: '14px', borderRadius: '25px', 
+>>>>>>> Stashed changes
                 fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}
             >

@@ -6,7 +6,15 @@ var logger = require('morgan');
 
 var indexRouter = require('./rutas/index');
 var usersRouter = require('./rutas/users');
+<<<<<<< Updated upstream
 
+=======
+var authRouter = require('./rutas/auth');
+var clientesRouter = require('./rutas/clientes');
+var eventosRouter = require('./rutas/eventos');
+var inventarioRouter = require('./rutas/inventario');
+var personalRouter = require('./rutas/personal'); 
+>>>>>>> Stashed changes
 var app = express();
 
 // view engine setup
@@ -21,6 +29,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+<<<<<<< Updated upstream
+=======
+app.use('/api/auth', authRouter);
+app.use('/api/clientes', clientesRouter);
+app.use('/api/eventos', eventosRouter);
+app.use('/api/inventario', inventarioRouter);
+app.use('/api/personal', personalRouter); 
+
+>>>>>>> Stashed changes
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
