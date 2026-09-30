@@ -1,47 +1,54 @@
 import React, { useState, useEffect } from 'react';
 
 export default function GestionarEventos() {
-  // 1. Estado para la lista completa y el evento seleccionado
   const [eventos, setEventos] = useState([]);
-  const [eventoSeleccionado, setEventoSeleccionado] = useState({
-    descripcion: 'Cargando...',
-    personal: '',
-    lugar: '',
-    numPersonas: ''
-  });
-  
-  // CAMBIO 1: Estado para lo que el usuario escribe en el buscador
+  const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
   const [busqueda, setBusqueda] = useState('');
 
-  // 2. Conexión al backend al cargar la página
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
   useEffect(() => {
-    fetch('http://localhost:3000/api/eventos')
-      .then(respuesta => respuesta.json())
-      .then(datos => {
-        setEventos(datos);
-        // Si hay datos, mostramos el primero automáticamente en la tarjeta
-        if (datos.length > 0) {
-          setEventoSeleccionado(datos[0]);
+    fetch(`${API_URL}/api/eventos`)
+      .then((respuesta) => {
+        if (!respuesta.ok) {
+          throw new Error('Respuesta no válida del servidor');
+        }
+        return respuesta.json();
+      })
+      .then((datos) => {
+        if (Array.isArray(datos)) {
+          setEventos(datos);
+          if (datos.length > 0) {
+            setEventoSeleccionado(datos[0]);
+          } else {
+            setEventoSeleccionado(null);
+          }
+        } else {
+          setEventos([]);
+          setEventoSeleccionado(null);
         }
       })
-      .catch(error => console.error("Error al cargar eventos:", error));
-  }, []);
+      .catch((error) => {
+        console.error("Error al cargar eventos:", error);
+        setEventos([]);
+        setEventoSeleccionado(null);
+      });
+  }, [API_URL]);
 
-  // CAMBIO 2: Filtro en tiempo real
-  const eventosFiltrados = eventos.filter((evento) =>
-    evento.descripcion.toLowerCase().includes(busqueda.toLowerCase())
+  const listaEventos = Array.isArray(eventos) ? eventos : [];
+
+  const eventosFiltrados = listaEventos.filter((evento) =>
+    (evento.descripcion || '').toLowerCase().includes(busqueda.toLowerCase())
   );
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
       
-      {/* Contenido Principal */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>
         
-        {/* Barra superior: Búsqueda y Botones */}
+        {/* Barra superior de Búsqueda y Botones */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          
-          {/* Barra de búsqueda */}
+
           <div style={{ 
             flex: 1, 
             maxWidth: '700px', 
@@ -54,7 +61,6 @@ export default function GestionarEventos() {
           }}>
             <span style={{ fontSize: '18px', marginRight: '10px' }}>🔍</span>
             
-            {/* CAMBIO 3: Conectar el input con el estado de búsqueda */}
             <input 
               type="text" 
               placeholder="Buscar eventos..." 
@@ -66,14 +72,13 @@ export default function GestionarEventos() {
                 outline: 'none', 
                 textAlign: 'center', 
                 fontStyle: 'italic', 
-                color: '#888',
+                color: '#333',
                 fontSize: '16px'
               }} 
             />
             <span style={{ fontSize: '20px', marginLeft: '10px', cursor: 'pointer' }}>⚲</span>
           </div>
           
-          {/* Botones de acción */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
             <button style={{ 
               backgroundColor: '#8a5b96', color: 'white', border: 'none', 
@@ -92,18 +97,19 @@ export default function GestionarEventos() {
           </div>
         </div>
 
-        {/* Contenedor de la Lista de Eventos */}
+        {/* Lista de Eventos */}
         <div style={{ 
           backgroundColor: '#8a5b96', padding: '20px', border: '3px solid black', 
           flex: 1, overflowY: 'auto', marginBottom: '20px'
         }}>
-          {eventos.length === 0 ? (
-            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>Cargando eventos desde el servidor...</p>
+          {listaEventos.length === 0 ? (
+            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>
+              No hay eventos registrados.
+            </p>
           ) : (
-            // CAMBIO 4: Mapear 'eventosFiltrados' en lugar de 'eventos'
             eventosFiltrados.map((evento, index) => (
               <div 
-                key={index} 
+                key={evento.idPE || evento.id || index} 
                 onClick={() => setEventoSeleccionado(evento)}
                 style={{ 
                   backgroundColor: '#d499a7', borderRadius: '30px', padding: '15px 25px', 
@@ -113,7 +119,7 @@ export default function GestionarEventos() {
                 }}
               >
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                  {new Date(evento.fecha).toLocaleDateString()} : {evento.descripcion} | {evento.lugar}
+                  {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'}
                 </span>
                 <div style={{ display: 'flex', gap: '15px' }}>
                   <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
@@ -124,17 +130,27 @@ export default function GestionarEventos() {
           )}
         </div>
 
-        {/* Tarjeta inferior de Detalles */}
+        {/* Tarjeta de Detalles del Evento Seleccionado */}
         <div style={{ 
           backgroundColor: 'white', borderRadius: '15px', padding: '20px 30px', 
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)', minHeight: '150px'
         }}>
-          <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{eventoSeleccionado.descripcion}</h2>
-          <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
-            <p style={{ margin: '5px 0' }}>Organizador(a): {eventoSeleccionado.personal}</p>
-            <p style={{ margin: '5px 0' }}>A petición de: {eventoSeleccionado.lugar}</p>
-            <p style={{ margin: '5px 0' }}>Invitados: <span style={{ textDecoration: 'underline', cursor: 'pointer', fontWeight: 'bold' }}>[{eventoSeleccionado.numPersonas} personas]</span></p>
-          </div>
+          {eventoSeleccionado ? (
+            <>
+              <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{eventoSeleccionado.descripcion}</h2>
+              <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
+                <p style={{ margin: '5px 0' }}>Organizador(a) / Personal: {eventoSeleccionado.personal || 'No asignado'}</p>
+                <p style={{ margin: '5px 0' }}>Ubicación: {eventoSeleccionado.lugar || 'No especificado'}</p>
+                <p style={{ margin: '5px 0' }}>
+                  Invitados: <span style={{ textDecoration: 'underline', fontWeight: 'bold' }}>
+                    [{eventoSeleccionado.numPersonas || 0} personas]
+                  </span>
+                </p>
+              </div>
+            </>
+          ) : (
+            <p style={{ color: '#666' }}>Selecciona un evento de la lista para ver sus detalles.</p>
+          )}
         </div>
         
       </main>

@@ -12,6 +12,7 @@ var authRouter = require('./rutas/auth');
 var clientesRouter = require('./rutas/clientes');
 var eventosRouter = require('./rutas/eventos');
 var inventarioRouter = require('./rutas/inventario');
+var personalRouter = require('./rutas/personal');
 
 var app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/eventos', eventosRouter);
 app.use('/api/inventario', inventarioRouter);
+app.use('/api/personal', personalRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));

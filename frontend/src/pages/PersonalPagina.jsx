@@ -1,28 +1,54 @@
 // frontend/src/pages/PersonalPagina.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
+export default function PersonalPagina() {
+  const [personalList, setPersonalList] = useState([]);
+  const [personalSeleccionado, setPersonalSeleccionado] = useState(null);
+  const [busqueda, setBusqueda] = useState('');
 
-export default function Personal({ rutaActiva = '/personal', alSeleccionar }) {
-  const [PersonalSeleccionado, setPersonalSeleccionado] = useState({
-    Nombre: 'José Pérez',
-    rut: 'XXXXXXX-X',
-    rol: 'XXXXXX',
-    fechaNacimiento: 'XX/XX/XXXX',
-    estado: 'XXXXXXX'
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/personal`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Error al obtener el personal');
+        return res.json();
+      })
+      .then((datos) => {
+        if (Array.isArray(datos)) {
+          setPersonalList(datos);
+          if (datos.length > 0) {
+            setPersonalSeleccionado(datos[0]);
+          }
+        } else {
+          setPersonalList([]);
+        }
+      })
+      .catch((err) => {
+        console.error('Error al cargar personal:', err);
+        setPersonalList([]);
+      });
+  }, [API_URL]);
+
+  const personalFiltrado = personalList.filter((persona) => {
+    const termino = busqueda.toLowerCase();
+    const nombre = persona.nombre || persona.Nombre || '';
+    const rol = persona.rol || persona.cargo || '';
+    const rut = persona.rut || '';
+
+    return (
+      nombre.toLowerCase().includes(termino) ||
+      rol.toLowerCase().includes(termino) ||
+      rut.toLowerCase().includes(termino)
+    );
   });
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
-      
-      {/* Barra Lateral importada */}
-
-      {/* Contenido Principal */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>
         
-        {/* Barra superior: Búsqueda y Botones */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           
-          {/* Barra de búsqueda */}
           <div style={{ 
             flex: 1, 
             maxWidth: '700px', 
@@ -36,63 +62,32 @@ export default function Personal({ rutaActiva = '/personal', alSeleccionar }) {
             <span style={{ fontSize: '18px', marginRight: '10px' }}>🔍</span>
             <input 
               type="text" 
-              placeholder="Buscar personal..." 
+              placeholder="Buscar por nombre, rol o RUT..." 
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
               style={{ 
                 flex: 1, 
                 border: 'none', 
                 outline: 'none', 
                 textAlign: 'center', 
                 fontStyle: 'italic', 
-                color: '#888',
+                color: '#333',
                 fontSize: '16px'
               }} 
             />
-            <span style={{ fontSize: '20px', marginLeft: '10px', cursor: 'pointer' }}>⚲</span>
           </div>
           
-          {/* Botones de acción */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginLeft: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '20px' }}>
             <button style={{ 
-              backgroundColor: '#8a5b96', 
-              color: 'white', 
-              border: 'none', 
-              padding: '12px 30px', 
-              borderRadius: '25px', 
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }}>
-              Buscar Personal
-            </button>
-            <button style={{ 
-              backgroundColor: '#8a5b96', 
-              color: 'white', 
-              border: 'none', 
-              padding: '12px 30px', 
-              borderRadius: '25px', 
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }}>
-              Buscar clientes
-            </button>
-            <button style={{ 
-              backgroundColor: '#8a5b96', 
-              color: 'white', 
-              border: 'none', 
-              padding: '12px 30px', 
-              borderRadius: '25px', 
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              backgroundColor: '#8a5b96', color: 'white', border: 'none', 
+              padding: '10px 24px', borderRadius: '25px', fontWeight: 'bold',
+              cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}>
               Agregar Personal
             </button>
-
           </div>
         </div>
 
-        {/* Contenedor de la Lista personal */}
         <div style={{ 
           backgroundColor: '#8a5b96', 
           padding: '20px', 
@@ -101,34 +96,39 @@ export default function Personal({ rutaActiva = '/personal', alSeleccionar }) {
           overflowY: 'auto',
           marginBottom: '20px'
         }}>
-          {[
-            "José Pérez | controlador de luces |",
-            " Mateo Gonzales| garzón |",
-            " Marcela Retamal | contabilidad |",
-          ].map((personal, index) => (
-            <div key={index} style={{ 
-              backgroundColor: '#d499a7', 
-              borderRadius: '30px', 
-              padding: '15px 25px', 
-              marginBottom: '15px', 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              border: '1px solid black',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
-            }}>
-              <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                {personal}
-              </span>
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
-                <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>🗑️</button>
+          {personalList.length === 0 ? (
+            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>
+              No hay personal registrado.
+            </p>
+          ) : (
+            personalFiltrado.map((persona) => (
+              <div 
+                key={persona.id || persona.rut} 
+                onClick={() => setPersonalSeleccionado(persona)}
+                style={{ 
+                  backgroundColor: '#d499a7', 
+                  borderRadius: '30px', 
+                  padding: '15px 25px', 
+                  marginBottom: '15px', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  border: '1px solid black',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                  cursor: 'pointer'
+                }}
+              >
+                <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
+                  {persona.nombre || persona.Nombre} | {persona.rol || persona.cargo || 'Sin Rol'} | RUT: {persona.rut || 'N/A'}
+                </span>
+                <div style={{ display: 'flex', gap: '15px' }}>
+                  <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
+                  <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>🗑️</button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
-
-        {/* Tarjeta inferior de Detalles */}
         <div style={{ 
           backgroundColor: 'white', 
           borderRadius: '15px', 
@@ -136,14 +136,27 @@ export default function Personal({ rutaActiva = '/personal', alSeleccionar }) {
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
           minHeight: '150px'
         }}>
-          <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{PersonalSeleccionado.Nombre}</h2>
-          <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
-            <p style={{ margin: '5px 0' }}>Rol: {PersonalSeleccionado.rol}</p>
-            <p style={{ margin: '5px 0' }}>Fecha de nacimiento: {PersonalSeleccionado.fechaNacimiento}</p>
-            <p style={{ margin: '5px 0' }}>Estado: <span style={{ fontWeight: 'bold' }}>{PersonalSeleccionado.estado}</span></p>
-
-
-          </div>
+          {personalSeleccionado ? (
+            <>
+              <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
+                {personalSeleccionado.nombre || personalSeleccionado.Nombre}
+              </h2>
+              <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
+                <p style={{ margin: '5px 0' }}>RUT: <strong>{personalSeleccionado.rut || 'Sin registrar'}</strong></p>
+                <p style={{ margin: '5px 0' }}>Rol / Cargo: <strong>{personalSeleccionado.rol || personalSeleccionado.cargo || 'General'}</strong></p>
+                <p style={{ margin: '5px 0' }}>
+                  Fecha de nacimiento: {personalSeleccionado.fechaNacimiento ? new Date(personalSeleccionado.fechaNacimiento).toLocaleDateString() : 'No especificada'}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  Estado: <span style={{ fontWeight: 'bold', color: personalSeleccionado.estado === 'Inactivo' ? 'red' : 'green' }}>
+                    {personalSeleccionado.estado || 'Activo'}
+                  </span>
+                </p>
+              </div>
+            </>
+          ) : (
+            <p style={{ color: '#666' }}>Selecciona a un miembro del personal de la lista para ver sus detalles.</p>
+          )}
         </div>
         
       </main>

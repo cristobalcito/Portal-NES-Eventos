@@ -1,13 +1,9 @@
-// frontend/src/pages/InventarioPage.jsx
 import { useState, useEffect } from 'react';
-import Sidebar from '../components/SidebarComponente';
 
 export default function InventarioPage() {
-  // 1. Inicia el estado vacío
   const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
 
-  // 2. Sincronización: Pide los datos al backend al cargar la página
   useEffect(() => {
     fetch('http://localhost:3000/api/inventario')
       .then((res) => res.json())
@@ -15,14 +11,12 @@ export default function InventarioPage() {
       .catch((err) => console.error("Error al cargar:", err));
   }, []);
 
-  // 3. Filtro de búsqueda
   const productosFiltrados = productos.filter((item) =>
     item.producto.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e9e7ec', fontFamily: 'sans-serif' }}>
-      <Sidebar />
 
       <main style={{ flex: 1, padding: '30px', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
