@@ -90,7 +90,7 @@ export default function ModalRegistro({ isOpen, tipo = 'persona', onClose, onGua
             <>
               <div>
                 <label style={labelStyle}>Nombre Completo:</label>
-                <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required style={inputStyle} placeholder="Ej: Leandro Flores" />
+                <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required style={inputStyle} placeholder="Ej: Juan Pérez" />
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
