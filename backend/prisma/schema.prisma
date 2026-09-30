@@ -1,0 +1,153 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Entidades - personas
+
+model Usuario {
+  rut                 String               @id
+  nombre              String
+  email               String               @unique
+  password            String
+  gerenteGeneral      GerenteGeneral?
+  personalOperaciones PersonalOperaciones?
+  cliente             Cliente?
+  personalEventual    PersonalEventual?
+}
+
+model GerenteGeneral {
+  rut          String         @id
+  usuario      Usuario        @relation(fields: [rut], references: [rut], onDelete: Cascade)
+  planBaseId   Int?
+  planBase     PlanBase?      @relation(fields: [planBaseId], references: [idPL])
+  arriendos    Arriendo[]
+  equipamiento Equipamiento[]
+}
+
+model PersonalOperaciones {
+  rut          String         @id
+  usuario      Usuario        @relation(fields: [rut], references: [rut], onDelete: Cascade)
+  especialidad String
+  fono         String
+  vehiculos    Vehiculo[]
+  equipamentos Equipamiento[]
+}
+
+model Cliente {
+  rut                   String                 @id
+  usuario               Usuario                @relation(fields: [rut], references: [rut], onDelete: Cascade)
+  fono                  String
+  encuestasSatisfaccion EncuestaSatisfaccion[]
+  alertas               Alerta[]
+}
+
+model PersonalEventual {
+  rut                 String  @id
+  usuario             Usuario @relation(fields: [rut], references: [rut], onDelete: Cascade)
+  rol                 String
+  disponibilidad      String
+  fono                String
+  experiencia         String
+  evaluacionDesempeno String
+  datosDePago         String
+  tallaDeRopa         String
+  notaFinal           Float
+}
+
+// Recursos de la compañía
+
+model Vehiculo {
+  matricula           String                @id
+  conductor           String
+  especificaciones    String
+  personalOperaciones PersonalOperaciones[]
+}
+
+model Equipamiento {
+  idEQ                Int                  @id @default(autoincrement())
+  tipo                String
+  marca               String
+  estado              String
+  gerenteGeneralId    String?
+  gerenteGeneral      GerenteGeneral?      @relation(fields: [gerenteGeneralId], references: [rut])
+  personalOperaciones PersonalOperaciones[]
+}
+
+model Arriendo {
+  idAR             Int             @id @default(autoincrement())
+  tipo             String
+  equipamiento     String
+  gerenteGeneralId String?
+  gerenteGeneral   GerenteGeneral? @relation(fields: [gerenteGeneralId], references: [rut])
+}
+
+// Planes y pertinentes
+
+model PlanBase {
+  idPL              Int              @id @default(autoincrement())
+  costoBase         Float
+  descripcion       String
+  gerentesGenerales GerenteGeneral[]
+  planesEspecificos PlanEspecifico[]
+}
+
+model PlanEspecifico {
+  idPE        Int       @id @default(autoincrement())
+  costoTotal  Float
+  descripcion String
+  lugar       String
+  numPersonas Int
+  personal    String
+  fecha       DateTime
+  planBaseId  Int?
+  planBase    PlanBase? @relation(fields: [planBaseId], references: [idPL])
+  horario     Horario?
+}
+
+model Horario {
+  idHO             Int            @id @default(autoincrement())
+  horaSalida       DateTime
+  horaLlegada      DateTime
+  horaVuelta       DateTime
+  planEspecificoId Int            @unique
+  planEspecifico   PlanEspecifico @relation(fields: [planEspecificoId], references: [idPE], onDelete: Cascade)
+}
+
+
+// Misceláneo
+
+model EncuestaSatisfaccion {
+  idES        Int      @id @default(autoincrement())
+  nota        Float
+  descripcion String
+  clienteRut  String?
+  cliente     Cliente? @relation(fields: [clienteRut], references: [rut])
+}
+
+model Alerta {
+  idAL       Int      @id @default(autoincrement())
+  razon      String
+  contenido  String
+  clienteRut String?
+  cliente    Cliente? @relation(fields: [clienteRut], references: [rut])
+}
+
+model Inventario {
+  id         Int      @id @default(autoincrement())
+  producto   String   @db.VarChar(150)
+  marca      String?  @db.VarChar(100)
+  stock      Int      @default(0)
+  disponible Int      @default(0)
+  ocupado    Int      @default(0)
+  mantencion Int      @default(0)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("inventario")
+}
