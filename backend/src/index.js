@@ -23,7 +23,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
+//app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/clientes', clientesRouter);
@@ -31,8 +31,10 @@ app.use('/api/eventos', eventosRouter);
 app.use('/api/inventario', inventarioRouter);
 app.use('/api/personal', personalRouter);
 
-app.use(function(req, res, next) {
-  next(createError(404));
+app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+
+app.get('*', (req, res) => {
+	res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
 });
 
 app.use(function(err, req, res, next) {
@@ -42,7 +44,7 @@ app.use(function(err, req, res, next) {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 1549;
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

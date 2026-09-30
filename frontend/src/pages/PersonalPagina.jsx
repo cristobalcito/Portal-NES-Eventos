@@ -9,7 +9,7 @@ export default function PersonalPagina() {
   const [error, setError] = useState('');
   const [mostrarModal, setMostrarModal] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = import.meta.env.VITE_API_URL || '';
 
   const cargarPersonal = () => {
     setCargando(true);

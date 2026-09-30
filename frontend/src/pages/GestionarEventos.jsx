@@ -5,7 +5,7 @@ export default function GestionarEventos() {
   const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
   const [busqueda, setBusqueda] = useState('');
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  const API_URL = import.meta.env.VITE_API_URL || '';
 
   useEffect(() => {
     fetch(`${API_URL}/api/eventos`)
