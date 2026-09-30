@@ -11,6 +11,7 @@ var usersRouter = require('./rutas/users');
 var authRouter = require('./rutas/auth');
 var clientesRouter = require('./rutas/clientes');
 var eventosRouter = require('./rutas/eventos');
+var inventarioRouter = require('./rutas/inventario');
 
 var app = express();
 
@@ -26,6 +27,7 @@ app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/clientes', clientesRouter);
 app.use('/api/eventos', eventosRouter);
+app.use('/api/inventario', inventarioRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));
@@ -45,3 +47,4 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
