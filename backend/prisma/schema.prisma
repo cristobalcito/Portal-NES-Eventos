@@ -136,3 +136,18 @@ model Alerta {
   clienteRut String?
   cliente    Cliente? @relation(fields: [clienteRut], references: [rut])
 }
+
+model Inventario {
+  id         Int      @id @default(autoincrement())
+  producto   String   @db.VarChar(150)
+  marca      String?  @db.VarChar(100)
+  stock      Int      @default(0)
+  disponible Int      @default(0)
+  ocupado    Int      @default(0)
+  mantencion Int      @default(0)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("inventario")
+}

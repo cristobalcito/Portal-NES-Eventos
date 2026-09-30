@@ -1,46 +1,37 @@
 // frontend/src/pages/InventarioPage.jsx
-import { useState } from 'react';
-
-// Datos de prueba basados en el boceto
-const PRODUCTOS_INICIALES = [
-  { id: 1, producto: 'Mesa', marca: '', stock: 60, disponible: 40, ocupado: 18, mantencion: 2 },
-  { id: 2, producto: 'Silla', marca: '', stock: 120, disponible: 100, ocupado: 20, mantencion: 0 },
-  { id: 3, producto: 'Parlante', marca: 'JBL', stock: 15, disponible: 10, ocupado: 5, mantencion: 0 },
-  { id: 4, producto: 'Copa', marca: '', stock: 200, disponible: 150, ocupado: 50, mantencion: 0 },
-  { id: 5, producto: 'Plato', marca: '', stock: 180, disponible: 140, ocupado: 35, mantencion: 5 },
-];
+import { useState, useEffect } from 'react';
+import Sidebar from '../components/SidebarComponente';
 
 export default function InventarioPage() {
-  const [productos] = useState(PRODUCTOS_INICIALES);
+  // 1. Inicia el estado vacío
+  const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
 
-  // Filtro de búsqueda en tiempo real
+  // 2. Sincronización: Pide los datos al backend al cargar la página
+  useEffect(() => {
+    fetch('http://localhost:3000/api/inventario')
+      .then((res) => res.json())
+      .then((data) => setProductos(data))
+      .catch((err) => console.error("Error al cargar:", err));
+  }, []);
+
+  // 3. Filtro de búsqueda
   const productosFiltrados = productos.filter((item) =>
     item.producto.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e9e7ec', fontFamily: 'sans-serif' }}>
-      {/* 1. Barra Lateral Reutilizable */}
+      <Sidebar />
 
-      {/* 2. Contenido Principal */}
       <main style={{ flex: 1, padding: '30px', boxSizing: 'border-box' }}>
-        
-        {/* Barra Superior: Buscador y Botones de Acción */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
           <input
             type="text"
             placeholder="Buscar producto..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            style={{
-              flex: 1,
-              padding: '12px 20px',
-              borderRadius: '30px',
-              border: '1px solid #ccc',
-              outline: 'none',
-              fontSize: '15px'
-            }}
+            style={{ flex: 1, padding: '12px 20px', borderRadius: '30px', border: '1px solid #ccc', outline: 'none', fontSize: '15px' }}
           />
           <button style={{ backgroundColor: '#734b75', color: 'white', border: 'none', padding: '12px 22px', borderRadius: '30px', cursor: 'pointer', fontWeight: 'bold' }}>
             Agregar producto
@@ -50,7 +41,6 @@ export default function InventarioPage() {
           </button>
         </div>
 
-        {/* Tabla de Productos */}
         <div style={{ backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
             <thead>
