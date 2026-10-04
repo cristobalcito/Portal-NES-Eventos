@@ -1,17 +1,26 @@
+// frontend/src/pages/CatalogoPagina.jsx
+
 import React, { useState, useEffect } from 'react';
 import TarjetaPlanComponente from '../components/tarjetaPlanComponente.jsx';
-import BotonComponente from '../components/BotonComponente.jsx'; // Nuevo componente
+import BotonComponente from '../components/BotonComponente.jsx';
+import ModalNuevoPlanBase from '../components/ModalNuevoPlanBase.jsx';
+
+// Importación modular de servicios
 import { obtenerPlanesBaseServicio } from '../servicios/catalogoServicio.js';
+import { crearPlanBaseServicio } from '../servicios/crearPlanBaseServicio.js';
 
 export default function CatalogoPagina() {
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [modalAbierto, setModalAbierto] = useState(false);
 
+  // Verificación de rol desde localStorage
   const rolUsuario = localStorage.getItem('rol'); 
   const esGerenteGeneral = rolUsuario === 'GERENTE_GENERAL' || rolUsuario === 'GERENTE';
 
-  useEffect(() => {
+  const cargarPlanes = () => {
+    setCargando(true);
     obtenerPlanesBaseServicio()
       .then((datos) => {
         setPlanes(datos);
@@ -22,10 +31,17 @@ export default function CatalogoPagina() {
         setError('Error al cargar las experiencias del catálogo.');
         setCargando(false);
       });
+  };
+
+  useEffect(() => {
+    cargarPlanes();
   }, []);
 
-  const manejarNuevoPlan = () => {
-    alert('Abrir modal/formulario para crear un nuevo Plan Base');
+  const manejarGuardarNuevoPlan = async (nuevoPlanDatos) => {
+    // Llama al servicio independiente POST
+    const planCreado = await crearPlanBaseServicio(nuevoPlanDatos);
+    // Agrega el nuevo plan al estado para refrescar la lista al instante
+    setPlanes((planesPrevios) => [...planesPrevios, planCreado]);
   };
 
   if (cargando) {
@@ -57,7 +73,7 @@ export default function CatalogoPagina() {
       boxSizing: 'border-box'
     }}>
 
-      {/* Tarjetas del Catálogo */}
+      {/* Tarjetas de Planes Base */}
       {planes.map((plan) => (
         <TarjetaPlanComponente
           key={plan.idPL}
@@ -67,14 +83,21 @@ export default function CatalogoPagina() {
         />
       ))}
 
-      {/* Botón flotante/circular usando BotonComponente */}
+      {/* Botón flotante exclusivo para el Gerente General */}
       {esGerenteGeneral && (
         <BotonComponente
           texto="+"
           variante="icono"
-          onClick={manejarNuevoPlan}
+          onClick={() => setModalAbierto(true)}
         />
       )}
+
+      {/* Modal para crear un nuevo Plan Base */}
+      <ModalNuevoPlanBase
+        abierto={modalAbierto}
+        alCerrar={() => setModalAbierto(false)}
+        alGuardar={manejarGuardarNuevoPlan}
+      />
     </main>
   );
 }
