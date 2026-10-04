@@ -1,11 +1,8 @@
-// frontend/src/pages/CatalogoPagina.jsx
-
 import React, { useState, useEffect } from 'react';
 import TarjetaPlanComponente from '../components/tarjetaPlanComponente.jsx';
 import BotonComponente from '../components/BotonComponente.jsx';
-import ModalNuevoPlanBase from '../components/ventanaEmergenteCatalogoComponente.jsx';
+import VentanaEmergenteCatalogoComponente from '../components/ventanaEmergenteCatalogoComponente.jsx';
 
-// Importación modular de servicios
 import { obtenerPlanesBaseServicio } from '../servicios/catalogoServicio.js';
 import { crearPlanBaseServicio } from '../servicios/crearPlanBaseServicio.js';
 
@@ -15,39 +12,49 @@ export default function CatalogoPagina() {
   const [error, setError] = useState(null);
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  // Verificación de rol desde localStorage
-  const rolUsuario = localStorage.getItem('rol'); 
-  const esGerenteGeneral = rolUsuario === 'GERENTE_GENERAL' || rolUsuario === 'GERENTE';
+  // 1. Extraer los datos del usuario desde localStorage
+  let esGerenteGeneral = false;
+  try {
+    const usuarioRaw = localStorage.getItem('usuario');
+    if (usuarioRaw) {
+      const usuario = JSON.parse(usuarioRaw);
+      // Valida por nombre o email según lo registrado en la sesión
+      const nombre = (usuario.nombre || '').toLowerCase();
+      const email = (usuario.email || '').toLowerCase();
 
-  const cargarPlanes = () => {
-    setCargando(true);
+      esGerenteGeneral = nombre.includes('gerente') || email.includes('gerente');
+    }
+  } catch (e) {
+    console.error('Error al leer sesión:', e);
+  }
+
+  useEffect(() => {
     obtenerPlanesBaseServicio()
       .then((datos) => {
-        setPlanes(datos);
+        setPlanes(Array.isArray(datos) ? datos : []);
         setCargando(false);
       })
       .catch((err) => {
-        console.error(err);
+        console.error('Error al obtener planes:', err);
         setError('Error al cargar las experiencias del catálogo.');
         setCargando(false);
       });
-  };
-
-  useEffect(() => {
-    cargarPlanes();
   }, []);
 
   const manejarGuardarNuevoPlan = async (nuevoPlanDatos) => {
-    // Llama al servicio independiente POST
-    const planCreado = await crearPlanBaseServicio(nuevoPlanDatos);
-    // Agrega el nuevo plan al estado para refrescar la lista al instante
-    setPlanes((planesPrevios) => [...planesPrevios, planCreado]);
+    try {
+      const planCreado = await crearPlanBaseServicio(nuevoPlanDatos);
+      setPlanes((planesPrevios) => [...planesPrevios, planCreado]);
+    } catch (err) {
+      console.error('Error al guardar el plan base:', err);
+      alert('Ocurrió un error al guardar el plan base.');
+    }
   };
 
   if (cargando) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <p>Cargando catálogo de experiencias...</p>
+      <div style={{ padding: '2rem', textAlign: 'center', color: '#333' }}>
+        <h3>Cargando catálogo...</h3>
       </div>
     );
   }
@@ -55,7 +62,7 @@ export default function CatalogoPagina() {
   if (error) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>
-        <p>{error}</p>
+        <h3>{error}</h3>
       </div>
     );
   }
@@ -64,26 +71,32 @@ export default function CatalogoPagina() {
     <main style={{
       display: 'flex',
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'center',
       alignItems: 'center',
       gap: '2.5rem',
       padding: '2rem',
-      overflowX: 'auto',
-      minHeight: '100vh',
+      minHeight: '80vh',
       boxSizing: 'border-box'
     }}>
+      {planes.length > 0 ? (
+        planes.map((plan) => (
+          <TarjetaPlanComponente
+            key={plan.idPL || plan.id || Math.random()}
+            titulo={`Plan Base #${plan.idPL || plan.id || ''}`}
+            precio={plan.costoBase ? `$${Number(plan.costoBase).toLocaleString('es-CL')}` : '$0'}
+            descripcion={plan.descripcion || 'Sin descripción'}
+          />
+        ))
+      ) : (
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <p style={{ color: '#666', fontSize: '1.1rem' }}>
+            No hay planes base registrados en la base de datos.
+          </p>
+        </div>
+      )}
 
-      {/* Tarjetas de Planes Base */}
-      {planes.map((plan) => (
-        <TarjetaPlanComponente
-          key={plan.idPL}
-          titulo={`Plan Base #${plan.idPL}`}
-          precio={`$${plan.costoBase.toLocaleString('es-CL')}`}
-          descripcion={plan.descripcion}
-        />
-      ))}
-
-      {/* Botón flotante exclusivo para el Gerente General */}
+      {/* Renderiza el botón + si el usuario es Gerente */}
       {esGerenteGeneral && (
         <BotonComponente
           texto="+"
@@ -92,8 +105,7 @@ export default function CatalogoPagina() {
         />
       )}
 
-      {/* Modal para crear un nuevo Plan Base */}
-      <ModalNuevoPlanBase
+      <VentanaEmergenteCatalogoComponente
         abierto={modalAbierto}
         alCerrar={() => setModalAbierto(false)}
         alGuardar={manejarGuardarNuevoPlan}

@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import BotonComponente from './BotonComponente.jsx';
 
 export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, alGuardar }) {
   const [costoBase, setCostoBase] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [enviando, setEnviando] = useState(false);
   const [errorLocal, setErrorLocal] = useState('');
+  const [guardando, setGuardando] = useState(false);
 
   if (!abierto) return null;
 
@@ -19,19 +18,20 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
     }
 
     try {
-      setEnviando(true);
+      setGuardando(true);
       await alGuardar({
         costoBase: parseFloat(costoBase),
         descripcion: descripcion.trim()
       });
-      // Limpiar formulario y cerrar
+
       setCostoBase('');
       setDescripcion('');
-      setEnviando(false);
+      setGuardando(false);
       alCerrar();
     } catch (err) {
-      setEnviando(false);
-      setErrorLocal(err.message || 'Error al guardar el plan.');
+      console.error('Error al guardar desde el modal:', err);
+      setErrorLocal('Ocurrió un error al guardar el plan base.');
+      setGuardando(false);
     }
   };
 
@@ -42,30 +42,30 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
       left: 0,
       width: '100vw',
       height: '100vh',
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       display: 'flex',
-      alignItems: 'center',
       justifyContent: 'center',
+      alignItems: 'center',
       zIndex: 1000
     }}>
       <div style={{
         backgroundColor: '#ffffff',
         padding: '2rem',
-        borderRadius: '12px',
-        width: '90%',
+        borderRadius: '8px',
+        width: '100%',
         maxWidth: '450px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
       }}>
-        <h2 style={{ marginTop: 0, color: '#523354', marginBottom: '1.5rem' }}>
-          Nuevo Plan Base
+        <h2 style={{ marginTop: 0, color: '#1f2937', marginBottom: '1.5rem' }}>
+          Agregar Nuevo Plan Base
         </h2>
 
         {errorLocal && (
           <div style={{
             color: '#ef4444',
             backgroundColor: '#fee2e2',
-            padding: '0.5rem',
-            borderRadius: '6px',
+            padding: '0.75rem',
+            borderRadius: '4px',
             marginBottom: '1rem',
             fontSize: '0.9rem'
           }}>
@@ -74,61 +74,78 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
         )}
 
         <form onSubmit={manejarSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#374151' }}>
               Costo Base ($):
             </label>
             <input
               type="number"
-              step="0.01"
+              min="0"
+              step="any"
+              placeholder="Ej: 150000"
               value={costoBase}
               onChange={(e) => setCostoBase(e.target.value)}
-              placeholder="Ej: 150000"
               style={{
                 width: '100%',
-                padding: '0.6rem',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
+                padding: '0.65rem',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
                 boxSizing: 'border-box'
               }}
-              required
             />
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#374151' }}>
               Descripción:
             </label>
             <textarea
               rows="4"
+              placeholder="Descripción detallada del plan base..."
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Descripción detallada del plan base..."
               style={{
                 width: '100%',
-                padding: '0.6rem',
-                borderRadius: '6px',
-                border: '1px solid #ccc',
+                padding: '0.65rem',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
                 boxSizing: 'border-box',
                 resize: 'vertical'
               }}
-              required
             />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-            <BotonComponente
-              texto="Cancelar"
-              variante="secundario"
+            <button
+              type="button"
               onClick={alCerrar}
-              deshabilitado={enviando}
-            />
-            <BotonComponente
-              texto={enviando ? "Guardando..." : "Guardar Plan"}
-              variante="primario"
-              onClick={manejarSubmit}
-              deshabilitado={enviando}
-            />
+              disabled={guardando}
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
+                backgroundColor: '#ffffff',
+                color: '#374151',
+                cursor: 'pointer'
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={guardando}
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                fontWeight: 'bold',
+                cursor: guardando ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {guardando ? 'Guardando...' : 'Guardar Plan'}
+            </button>
           </div>
         </form>
       </div>
