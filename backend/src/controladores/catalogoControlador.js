@@ -27,6 +27,40 @@ const obtenerPlanesBase = async (req, res) => {
   }
 };
 
+
+const crearPlanBase = async (req, res) => {
+  try {
+    const { costoBase, descripcion } = req.body;
+
+    if (!costoBase || !descripcion) {
+      return res.status(400).json({
+        exito: false,
+        mensaje: 'El costo base y la descripción son campos obligatorios.'
+      });
+    }
+
+    const nuevoPlan = await prisma.planBase.create({
+      data: {
+        costoBase: parseFloat(costoBase),
+        descripcion: descripcion
+      }
+    });
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: 'Plan Base creado con éxito.',
+      datos: nuevoPlan
+    });
+  } catch (error) {
+    console.error('Error al crear Plan Base:', error);
+    return res.status(500).json({
+      exito: false,
+      mensaje: 'Error interno del servidor al crear el plan base.'
+    });
+  }
+};
+
 module.exports = {
-  obtenerPlanesBase
+  obtenerPlanesBase,
+  crearPlanBase
 };
