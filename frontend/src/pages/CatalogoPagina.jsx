@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import TarjetaPlanComponente from '../components/tarjetaPlanComponente.jsx';
 import BotonComponente from '../components/BotonComponente.jsx';
-import ModalNuevoPlanBase from '../components/ModalNuevoPlanBase.jsx';
+import ModalNuevoPlanBase from '../components/crearPlanBaseServicio.jsx';
 
 // Importación modular de servicios
 import { obtenerPlanesBaseServicio } from '../servicios/catalogoServicio.js';

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerPlanesBase } = require('../controllers/catalogoControlador');
+const { obtenerPlanesBase } = require('../controladores/catalogoControlador');
+const { crearPlanBase } = require('../controladores/catalogoControlador');
 
 // Ruta GET para obtener la lista del catálogo
 // Endpoint final: /api/catalogo/planes-base
