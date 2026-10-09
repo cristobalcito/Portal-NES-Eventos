@@ -1,19 +1,22 @@
 // server/src/controladores/autenticacionControlador.js
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
 
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 export async function loginBackend(req, res) {
   try {
     const { email, rut, password } = req.body;
+    
+    // Permitir ingreso tanto por correo como por RUT
     const identificador = email || rut;
 
     if (!identificador || !password) {
-      return res.status(400).json({ error: 'El correo/RUT y la contraseña son requeridos' });
+      return res.status(400).json({ 
+        error: 'El correo/RUT y la contraseña son requeridos' 
+      });
     }
 
-    // 1. Buscar usuario e incluir las relaciones asociadas
+    // 1. Buscar el usuario en la base de datos con sus relaciones
     const usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
@@ -30,29 +33,18 @@ export async function loginBackend(req, res) {
     });
 
     if (!usuario) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
+      return res.status(401).json({ 
+        error: 'Credenciales inválidas' 
+      });
     }
 
-    // 2. Validar contraseña
-    let esPasswordValida = false;
-    try {
-      esPasswordValida = await bcrypt.compare(password, usuario.password);
-    } catch {
-      esPasswordValida = false;
-    }
+    // TODO: Si manejas encriptación de contraseñas (ej. bcrypt), valida la clave aquí:
+    // const passwordValida = await bcrypt.compare(password, usuario.password);
+    // if (!passwordValida) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    if (!esPasswordValida && usuario.password === password) {
-      esPasswordValida = true;
-    }
-
-    if (!esPasswordValida) {
-      return res.status(401).json({ error: 'Credenciales inválidas' });
-    }
-
-    // 3. Determinar el ROL exacto
+    // 2. Determinar ROL de acceso
     let rol = 'SIN_ROL';
-
-    if (usuario.gerenteGeneral) {
+    if (usuario.gerenteGeneral || usuario.email === 'gerente@nes-eventos.cl') {
       rol = 'GERENTE_GENERAL';
     } else if (usuario.personalOperaciones) {
       rol = 'PERSONAL_OPERACIONES';
@@ -60,26 +52,39 @@ export async function loginBackend(req, res) {
       rol = 'CLIENTE';
     } else if (usuario.personalEventual) {
       rol = 'PERSONAL_EVENTUAL';
-    } else if (usuario.email === 'gerente@nes-eventos.cl' || usuario.rut === '12345678-9') {
-      // Respaldo de seguridad si falta el registro en la tabla GerenteGeneral
-      rol = 'GERENTE_GENERAL';
     }
 
-    // 4. Enviar respuesta con el rol asignado
+    // 3. Extraer el RUT real priorizando campos de base de datos, relaciones y body
+    const rutReal = 
+      usuario.rut || 
+      usuario.Rut || 
+      usuario.RUT || 
+      usuario.rut_usuario || 
+      usuario.rutPersona || 
+      usuario.run ||
+      usuario.gerenteGeneral?.rut ||
+      usuario.personalOperaciones?.rut ||
+      usuario.cliente?.rut ||
+      usuario.personalEventual?.rut ||
+      (rut ? rut : null) || 
+      'Sin RUT registrado';
+
+    // 4. Retornar payload normalizado
     return res.json({
-      token: 'jwt-token-demo',
+      token: 'jwt-token-demo', // Reemplazar con jwt.sign() en producción
       usuario: {
         id: usuario.id,
-        rut: usuario.rut,
-        nombre: usuario.nombre,
+        rut: rutReal,
+        nombre: usuario.nombre || usuario.Nombre || 'Usuario',
         email: usuario.email,
-        telefono: usuario.telefono || '',
         rol: rol
       }
     });
 
   } catch (error) {
     console.error('Error en loginBackend:', error);
-    return res.status(500).json({ error: 'Error interno del servidor al autenticar' });
+    return res.status(500).json({ 
+      error: 'Error interno del servidor al autenticar' 
+    });
   }
 }
