@@ -4,8 +4,8 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var cors = require('cors');
-var router = express.Router();
 require('dotenv').config();
+
 var indexRouter = require('./rutas/index');
 var usersRouter = require('./rutas/users');
 var authRouter = require('./rutas/auth');
@@ -14,8 +14,8 @@ var eventosRouter = require('./rutas/eventos');
 var inventarioRouter = require('./rutas/inventario');
 var personalRouter = require('./rutas/personal');
 var catalogoRouter = require('./rutas/catalogoRutas');
-var { obtenerUsuarios } = require('../controladores/usuarioControlador');
-var { verificarGerenteGeneral } = require('../middlewares/verificarGerenteGeneral');
+var usuariosRouter = require('./rutas/usuarioRutas');
+
 
 var app = express();
 
@@ -34,6 +34,7 @@ app.use('/api/eventos', eventosRouter);
 app.use('/api/inventario', inventarioRouter);
 app.use('/api/personal', personalRouter);
 app.use('/api/catalogo', catalogoRouter);
+app.use('/api/usuarios', usuariosRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));
