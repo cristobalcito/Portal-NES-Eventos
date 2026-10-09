@@ -1,28 +1,65 @@
-// server/src/controladores/autenticacionControlador.js
 
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-export async function loginBackend(req, res) {
+export async function modificarUsuarioBackend(req, res) {
   try {
-    const { email, rut, password } = req.body;
-    
-    // Permitir ingreso tanto por correo como por RUT
-    const identificador = email || rut;
+    const { id } = req.params;
+    const { nombre, email, rut, rol } = req.body;
 
-    if (!identificador || !password) {
+    if (!id) {
       return res.status(400).json({ 
-        error: 'El correo/RUT y la contraseña son requeridos' 
+        error: 'El ID del usuario es requerido' 
       });
     }
 
-    // 1. Buscar el usuario en la base de datos con sus relaciones
-    const usuario = await prisma.usuario.findFirst({
-      where: {
-        OR: [
-          { email: identificador },
-          { rut: identificador }
-        ]
+    // 1. Verificar si el usuario existe junto con sus relaciones
+    const usuarioExistente = await prisma.usuario.findUnique({
+      where: { id: Number(id) || id },
+      include: {
+        gerenteGeneral: true,
+        personalOperaciones: true,
+        cliente: true,
+        personalEventual: true,
+      },
+    });
+
+    if (!usuarioExistente) {
+      return res.status(404).json({ 
+        error: 'Usuario no encontrado' 
+      });
+    }
+
+    // 2. Si se actualiza el email o RUT, verificar que no estén duplicados en otro usuario
+    if (email && email !== usuarioExistente.email) {
+      const emailExiste = await prisma.usuario.findFirst({
+        where: { email, NOT: { id: usuarioExistente.id } },
+      });
+      if (emailExiste) {
+        return res.status(400).json({ 
+          error: 'El correo electrónico ya está registrado por otro usuario' 
+        });
+      }
+    }
+
+    if (rut && rut !== usuarioExistente.rut) {
+      const rutExiste = await prisma.usuario.findFirst({
+        where: { rut, NOT: { id: usuarioExistente.id } },
+      });
+      if (rutExiste) {
+        return res.status(400).json({ 
+          error: 'El RUT ya está registrado por otro usuario' 
+        });
+      }
+    }
+
+    // 3. Actualizar el registro principal en la base de datos
+    const usuarioActualizado = await prisma.usuario.update({
+      where: { id: usuarioExistente.id },
+      data: {
+        ...(nombre && { nombre }),
+        ...(email && { email }),
+        ...(rut && { rut }),
       },
       include: {
         gerenteGeneral: true,
@@ -32,59 +69,50 @@ export async function loginBackend(req, res) {
       },
     });
 
-    if (!usuario) {
-      return res.status(401).json({ 
-        error: 'Credenciales inválidas' 
-      });
+    // 4. Determinar ROL preservando la jerarquía o el rol enviado en el body
+    let rolCalculado = rol;
+    if (!rolCalculado) {
+      if (usuarioActualizado.gerenteGeneral || usuarioActualizado.email === 'gerente@nes-eventos.cl') {
+        rolCalculado = 'GERENTE_GENERAL';
+      } else if (usuarioActualizado.personalOperaciones) {
+        rolCalculado = 'PERSONAL_OPERACIONES';
+      } else if (usuarioActualizado.cliente) {
+        rolCalculado = 'CLIENTE';
+      } else if (usuarioActualizado.personalEventual) {
+        rolCalculado = 'PERSONAL_EVENTUAL';
+      } else {
+        rolCalculado = 'SIN_ROL';
+      }
     }
 
-    // TODO: Si manejas encriptación de contraseñas (ej. bcrypt), valida la clave aquí:
-    // const passwordValida = await bcrypt.compare(password, usuario.password);
-    // if (!passwordValida) return res.status(401).json({ error: 'Credenciales inválidas' });
-
-    // 2. Determinar ROL de acceso
-    let rol = 'SIN_ROL';
-    if (usuario.gerenteGeneral || usuario.email === 'gerente@nes-eventos.cl') {
-      rol = 'GERENTE_GENERAL';
-    } else if (usuario.personalOperaciones) {
-      rol = 'PERSONAL_OPERACIONES';
-    } else if (usuario.cliente) {
-      rol = 'CLIENTE';
-    } else if (usuario.personalEventual) {
-      rol = 'PERSONAL_EVENTUAL';
-    }
-
-    // 3. Extraer el RUT real priorizando campos de base de datos, relaciones y body
+    // 5. Determinar el RUT real final
     const rutReal = 
-      usuario.rut || 
-      usuario.Rut || 
-      usuario.RUT || 
-      usuario.rut_usuario || 
-      usuario.rutPersona || 
-      usuario.run ||
-      usuario.gerenteGeneral?.rut ||
-      usuario.personalOperaciones?.rut ||
-      usuario.cliente?.rut ||
-      usuario.personalEventual?.rut ||
-      (rut ? rut : null) || 
+      usuarioActualizado.rut || 
+      usuarioActualizado.Rut || 
+      usuarioActualizado.RUT || 
+      usuarioActualizado.gerenteGeneral?.rut ||
+      usuarioActualizado.personalOperaciones?.rut ||
+      usuarioActualizado.cliente?.rut ||
+      usuarioActualizado.personalEventual?.rut ||
+      rut || 
       'Sin RUT registrado';
 
-    // 4. Retornar payload normalizado
+    // 6. Retornar payload normalizado idéntico al del Login
     return res.json({
-      token: 'jwt-token-demo', // Reemplazar con jwt.sign() en producción
+      mensaje: 'Usuario actualizado exitosamente',
       usuario: {
-        id: usuario.id,
+        id: usuarioActualizado.id,
         rut: rutReal,
-        nombre: usuario.nombre || usuario.Nombre || 'Usuario',
-        email: usuario.email,
-        rol: rol
+        nombre: usuarioActualizado.nombre || usuarioActualizado.Nombre || 'Usuario',
+        email: usuarioActualizado.email,
+        rol: rolCalculado
       }
     });
 
   } catch (error) {
-    console.error('Error en loginBackend:', error);
+    console.error('Error en modificarUsuarioBackend:', error);
     return res.status(500).json({ 
-      error: 'Error interno del servidor al autenticar' 
+      error: 'Error interno del servidor al modificar el usuario' 
     });
   }
 }

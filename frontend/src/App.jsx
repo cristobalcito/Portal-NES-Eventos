@@ -32,6 +32,43 @@ function App() {
         setSeccionActual('/home');
     };
 
+    // Función para actualizar el usuario resguardando el ROL y RUT sin depender exclusivamente del correo antiguo
+    const handleUpdateUsuario = (nuevoUsuario) => {
+        setUsuario((prevUsuario) => {
+            if (!prevUsuario) return nuevoUsuario;
+
+            // 1. Mantener el ROL previo si la actualización no devuelve uno explícito
+            const rolMantenido =
+                nuevoUsuario.rol ||
+                nuevoUsuario.Rol ||
+                nuevoUsuario.ROL ||
+                prevUsuario.rol ||
+                prevUsuario.Rol ||
+                'GERENTE_GENERAL'; // Rol por defecto/resguardo
+
+            // 2. Mantener el RUT previo si la respuesta no lo incluye
+            const rutMantenido =
+                nuevoUsuario.rut ||
+                nuevoUsuario.Rut ||
+                nuevoUsuario.RUT ||
+                nuevoUsuario.rutPersona ||
+                prevUsuario.rut ||
+                prevUsuario.Rut ||
+                'No especificado';
+
+            const usuarioActualizado = {
+                ...prevUsuario,
+                ...nuevoUsuario,
+                rol: rolMantenido,
+                rut: rutMantenido,
+            };
+
+            // Guardar inmediatamente en localStorage
+            localStorage.setItem('usuario', JSON.stringify(usuarioActualizado));
+            return usuarioActualizado;
+        });
+    };
+
     if (!usuario) {
         return (
             <Login 
@@ -46,16 +83,17 @@ function App() {
     const propsDeNavegacion = {
         rutaActiva: seccionActual,
         alSeleccionar: setSeccionActual,
+        onUpdateUsuario: handleUpdateUsuario,
     };
 
-    // Determinar ROL con fallback para variantes de nombres (rol / Rol / email)
+    // Determinar ROL priorizando las propiedades explícitas antes de cualquier fallback
     const rolDetectado = 
         usuario.rol || 
         usuario.Rol || 
         usuario.ROL || 
-        (usuario.email === 'gerente@nes-eventos.cl' ? 'GERENTE_GENERAL' : 'No asignado');
+        'GERENTE_GENERAL';
 
-    // Determinar RUT revisando las diferentes variantes posibles del backend
+    // Determinar RUT revisando variantes
     const rutDetectado = 
         usuario.rut || 
         usuario.Rut || 

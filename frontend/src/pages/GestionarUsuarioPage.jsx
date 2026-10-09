@@ -75,10 +75,11 @@ const GestionUsuarios = () => {
 
     try {
       if (modoEdicion) {
-        // Al modificar, no enviamos el RUT (se mantiene inalterable)
+        // Al modificar, enviamos el RUT original en la URL y los nuevos valores en el body
         const datosActualizar = {
           nombre: formulario.nombre,
           email: formulario.email,
+          nuevoRut: formulario.rut, // Permite actualizar el RUT en la base de datos
           nuevoRol: formulario.rol
         };
         if (formulario.password) {
@@ -87,6 +88,12 @@ const GestionUsuarios = () => {
 
         const res = await modificarUsuario(rutEditar, datosActualizar);
         if (res.exito) {
+          // Si el usuario editado es el mismo que inició sesión, actualizamos localStorage
+          const usuarioSesion = JSON.parse(localStorage.getItem('usuario') || '{}');
+          if (usuarioSesion.rut === rutEditar && res.datos) {
+            localStorage.setItem('usuario', JSON.stringify(res.datos));
+          }
+
           setMensaje({ tipo: 'exito', texto: 'Usuario actualizado con éxito.' });
           limpiarFormulario();
           cargarListaUsuarios();
@@ -112,7 +119,7 @@ const GestionUsuarios = () => {
     setModoEdicion(true);
     setRutEditar(usuario.rut);
     setFormulario({
-      rut: usuario.rut, // El RUT se deshabilita en edición
+      rut: usuario.rut, // El RUT ahora es totalmente editable
       nombre: usuario.nombre,
       email: usuario.email,
       password: '', // Se deja vacío a menos que se desee cambiar la clave
@@ -168,7 +175,7 @@ const GestionUsuarios = () => {
         marginBottom: '30px'
       }}>
         <h3 style={{ marginTop: 0 }}>
-          {modoEdicion ? `Editar Usuario (RUT: ${rutEditar})` : 'Crear Nuevo Usuario'}
+          {modoEdicion ? `Editar Usuario (RUT Actual: ${rutEditar})` : 'Crear Nuevo Usuario'}
         </h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -179,7 +186,6 @@ const GestionUsuarios = () => {
               name="rut"
               value={formulario.rut}
               onChange={handleChange}
-              disabled={modoEdicion} // El RUT no se puede modificar al editar
               required
               placeholder="12345678-9"
               style={{
@@ -187,7 +193,7 @@ const GestionUsuarios = () => {
                 padding: '8px 12px',
                 borderRadius: '4px',
                 border: '1px solid #ccc',
-                backgroundColor: modoEdicion ? '#e9ecef' : '#ffffff',
+                backgroundColor: '#ffffff',
                 boxSizing: 'border-box'
               }}
             />
