@@ -1,11 +1,8 @@
-import { Router } from 'express';
-import { obtenerUsuarios } from '../controladores/usuarioControlador.js';
-import { verificarGerenteGeneral } from '../middlewares/verificarGerenteGeneral.js';
+var express = require('express');
+var router = express.Router();
+var { obtenerUsuarios } = require('../controladores/usuarioControlador');
+var { verificarGerenteGeneral } = require('../middlewares/verificarGerenteGeneral');
 
-const router = Router();
+router.get('/', verificarGerenteGeneral, obtenerUsuarios);
 
-// Endpoint para listar todos los usuarios
-// Protegido: Solo pasa si el middleware confirma que el x-usuario-rut es Gerente General
-router.get('/usuarios', verificarGerenteGeneral, obtenerUsuarios);
-
-export default router;
+module.exports = router;
