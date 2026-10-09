@@ -1,9 +1,7 @@
-// backend/src/controladores/usuarioControlador.js
 import { PrismaClient } from '@prisma/client';
-
 const prisma = new PrismaClient();
 
-// 1. OBTENER TODOS LOS USUARIOS CON SU ROL
+// Obtener la lista completa de usuarios con su rol deducido
 export const obtenerUsuarios = async (req, res) => {
   try {
     const usuarios = await prisma.usuario.findMany({
@@ -15,18 +13,23 @@ export const obtenerUsuarios = async (req, res) => {
       }
     });
 
-    // Mapeamos para aplanar la respuesta y entregar un atributo "rol" claro
-    const usuariosFormateados = usuarios.map((u) => {
+    // Mapeamos el resultado para entregar un campo "rol" explícito al frontend
+    const usuariosFormateados = usuarios.map((usuario) => {
       let rol = 'SIN_ROL';
 
-      if (u.gerenteGeneral) rol = 'GERENTE_GENERAL';
-      else if (u.personalOperaciones) rol = 'PERSONAL_OPERACIONES';
-      else if (u.cliente) rol = 'CLIENTE';
-      else if (u.personalEventual) rol = 'PERSONAL_EVENTUAL';
+      if (usuario.gerenteGeneral) {
+        rol = 'GERENTE_GENERAL';
+      } else if (usuario.personalOperaciones) {
+        rol = 'PERSONAL_OPERACIONES';
+      } else if (usuario.cliente) {
+        rol = 'CLIENTE';
+      } else if (usuario.personalEventual) {
+        rol = 'PERSONAL_EVENTUAL';
+      }
 
-      // Omitimos la contraseña en la respuesta por seguridad
-      const { password, ...usuarioSinPassword } = u;
-      
+      // Quitamos la contraseña del objeto retornado
+      const { password, ...usuarioSinPassword } = usuario;
+
       return {
         ...usuarioSinPassword,
         rol
@@ -41,7 +44,7 @@ export const obtenerUsuarios = async (req, res) => {
     console.error('Error al obtener usuarios:', error);
     return res.status(500).json({
       exito: false,
-      mensaje: 'Error interno al obtener los usuarios.'
+      mensaje: 'Error interno al obtener la lista de usuarios.'
     });
   }
 };
