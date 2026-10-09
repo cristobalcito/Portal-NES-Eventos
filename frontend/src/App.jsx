@@ -4,7 +4,7 @@ import CatalogoPagina from './pages/CatalogoPagina.jsx';
 import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
-import GestionUsuarios from './pages/GestionarUsuariosPage.jsx';
+import GestionUsuarios from './pages/GestionarUsuarioPage.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {

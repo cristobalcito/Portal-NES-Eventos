@@ -1,52 +1,55 @@
-import axios from 'axios';
+// src/servicios/usuarioServicio.js
 
-const API_URL = 'http://localhost:3000/api/usuarios';
+const API_URL = 'http://localhost:3000/api/usuarios'; // Ajusta a tu URL backend
 
-// Extrae el RUT del usuario en sesión (busca en claves comunes de localStorage/sessionStorage)
-const obtenerRutUsuarioSesion = () => {
-  const clavesPosibles = ['usuario', 'user', 'session', 'auth'];
-  
-  for (const clave of clavesPosibles) {
-    const item = localStorage.getItem(clave) || sessionStorage.getItem(clave);
-    if (item) {
-      try {
-        const datos = JSON.parse(item);
-        // Lee directamente la propiedad 'rut' del modelo Usuario
-        if (datos?.rut) return datos.rut;
-        if (datos?.usuario?.rut) return datos.usuario.rut;
-      } catch (e) {
-        if (typeof item === 'string' && item.length >= 8) return item;
-      }
-    }
-  }
-  return '';
-};
-
+// Función auxiliar para obtener el header con el RUT del Gerente General
 const obtenerHeaders = () => {
+  const usuarioGuardado = localStorage.getItem('usuario');
+  const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
   return {
-    headers: {
-      'Content-Type': 'application/json',
-      'x-usuario-rut': obtenerRutUsuarioSesion()
-    }
+    'Content-Type': 'application/json',
+    'x-usuario-rut': usuario?.rut || ''
   };
 };
 
 export const obtenerUsuarios = async () => {
-  const respuesta = await axios.get(API_URL, obtenerHeaders());
-  return respuesta.data;
+  const res = await fetch(API_URL, {
+    method: 'GET',
+    headers: obtenerHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw { response: { data } };
+  return data;
 };
 
 export const crearUsuario = async (datosUsuario) => {
-  const respuesta = await axios.post(API_URL, datosUsuario, obtenerHeaders());
-  return respuesta.data;
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: obtenerHeaders(),
+    body: JSON.stringify(datosUsuario)
+  });
+  const data = await res.json();
+  if (!res.ok) throw { response: { data } };
+  return data;
 };
 
-export const modificarUsuario = async (rut, datosUsuario) => {
-  const respuesta = await axios.put(`${API_URL}/${rut}`, datosUsuario, obtenerHeaders());
-  return respuesta.data;
+export const modificarUsuario = async (rut, datosActualizar) => {
+  const res = await fetch(`${API_URL}/${rut}`, {
+    method: 'PUT',
+    headers: obtenerHeaders(),
+    body: JSON.stringify(datosActualizar)
+  });
+  const data = await res.json();
+  if (!res.ok) throw { response: { data } };
+  return data;
 };
 
 export const eliminarUsuario = async (rut) => {
-  const respuesta = await axios.delete(`${API_URL}/${rut}`, obtenerHeaders());
-  return respuesta.data;
+  const res = await fetch(`${API_URL}/${rut}`, {
+    method: 'DELETE',
+    headers: obtenerHeaders()
+  });
+  const data = await res.json();
+  if (!res.ok) throw { response: { data } };
+  return data;
 };
