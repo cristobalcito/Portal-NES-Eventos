@@ -9,7 +9,7 @@ import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
     const [usuario, setUsuario] = useState(null);
-    const [seccionActual, setSeccionActual] = useState('/catalogo');
+    const [seccionActual, setSeccionActual] = useState('/home'); // Iniciar por defecto en /home
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -29,10 +29,18 @@ function App() {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
         setUsuario(null);
+        setSeccionActual('/home');
     };
 
     if (!usuario) {
-        return <Login onLoginSuccess={(user) => setUsuario(user)} />;
+        return (
+            <Login 
+                onLoginSuccess={(user) => {
+                    setUsuario(user);
+                    setSeccionActual('/home');
+                }} 
+            />
+        );
     }
 
     const propsDeNavegacion = {
@@ -49,7 +57,7 @@ function App() {
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
             case '/usuarios':
-                if (usuario.rol !== 'GERENTE_GENERAL') {
+                if (usuario?.rol !== 'GERENTE_GENERAL') {
                     return (
                         <div style={{ padding: '2rem', color: '#721c24', backgroundColor: '#f8d7da', margin: '2rem', borderRadius: '8px' }}>
                             <h2>Acceso Denegado</h2>
@@ -63,9 +71,9 @@ function App() {
                     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
                         <h1>Portal NES Eventos</h1>
                         <p>Hola, <strong>{usuario.nombre}</strong></p>
-                        <p>RUT: {usuario.rut}</p>
-                        <p>Email: {usuario.email}</p>
-                        <p>Rol: {usuario.rol}</p>
+                        <p>RUT: {usuario.rut || 'No especificado'}</p>
+                        <p>Email: {usuario.email || 'No especificado'}</p>
+                        <p>Rol: {usuario.rol || 'No asignado'}</p>
                         <button onClick={handleLogout}>Cerrar Sesión</button>
                     </div>
                 );

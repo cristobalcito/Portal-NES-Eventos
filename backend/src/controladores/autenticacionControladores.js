@@ -1,4 +1,3 @@
-//src/controladores/autenticacionControlador.js
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
@@ -9,11 +8,12 @@ export async function loginBackend(req, res) {
     const { email, rut, password } = req.body;
     const identificador = email || rut;
 
+    // 1. Validar que vengan los datos necesarios
     if (!identificador || !password) {
       return res.status(400).json({ error: 'El correo/RUT y la contraseña son requeridos' });
     }
 
-    // 1. Busca al usuario por Email o RUT e incluye las relaciones de ROL
+    // 2. Buscar al usuario en la base de datos e incluir las tablas asociadas para determinar el rol
     const usuario = await prisma.usuario.findFirst({
       where: {
         OR: [
@@ -33,16 +33,24 @@ export async function loginBackend(req, res) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    // 2. Validar la contraseña (si usas contraseñas en plano para desarrollo o bcrypt)
-    // Si usas bcrypt:
-    const esPasswordValida = await bcrypt.compare(password, usuario.password).catch(() => usuario.password === password);
-    // Si no usas bcrypt aún: const esPasswordValida = usuario.password === password;
+    // 3. Validar la contraseña (soporta hash bcrypt o texto en plano)
+    let esPasswordValida = false;
+    try {
+      esPasswordValida = await bcrypt.compare(password, usuario.password);
+    } catch {
+      esPasswordValida = false;
+    }
+
+    // Respaldo en caso de que la contraseña esté almacenada en texto plano
+    if (!esPasswordValida && usuario.password === password) {
+      esPasswordValida = true;
+    }
 
     if (!esPasswordValida) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    // 3. Determinar el ROL exacto según las tablas asociadas
+    // 4. Determinar el ROL exacto según las relaciones
     let rol = 'SIN_ROL';
     if (usuario.gerenteGeneral) {
       rol = 'GERENTE_GENERAL';
@@ -54,15 +62,16 @@ export async function loginBackend(req, res) {
       rol = 'PERSONAL_EVENTUAL';
     }
 
-    // Quitar password del objeto devuelto
-    const { password: _, ...usuarioSinPassword } = usuario;
-
-    // 4. Retornar el objeto usuario completo con el rol explícito
+    // 5. Retornar la respuesta con la estructura exacta que espera el Frontend
     return res.json({
-      token: 'jwt-token-demo', // Si utilizas JWT pon tu token aquí
+      token: 'jwt-token-demo', // Si utilizas un token JWT generado, colócalo aquí
       usuario: {
-        ...usuarioSinPassword,
-        rol: rol
+        id: usuario.id,
+        rut: usuario.rut,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        telefono: usuario.telefono || '',
+        rol: rol // Propiedad indispensable para App.jsx
       }
     });
 
