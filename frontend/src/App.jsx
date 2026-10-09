@@ -4,6 +4,7 @@ import CatalogoPagina from './pages/CatalogoPagina.jsx';
 import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
+import GestionUsuarios from './paginas/GestionUsuarios.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
@@ -47,6 +48,16 @@ function App() {
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
+            case '/usuarios':
+                if (usuario.rol !== 'GERENTE_GENERAL') {
+                    return (
+                        <div style={{ padding: '2rem', color: '#721c24', backgroundColor: '#f8d7da', margin: '2rem', borderRadius: '8px' }}>
+                            <h2>Acceso Denegado</h2>
+                            <p>Esta sección está reservada exclusivamente para el Gerente General.</p>
+                        </div>
+                    );
+                }
+                return <GestionUsuarios {...propsDeNavegacion} />;
             case '/home':
                 return (
                     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
@@ -54,6 +65,7 @@ function App() {
                         <p>Hola, <strong>{usuario.nombre}</strong></p>
                         <p>RUT: {usuario.rut}</p>
                         <p>Email: {usuario.email}</p>
+                        <p>Rol: {usuario.rol}</p>
                         <button onClick={handleLogout}>Cerrar Sesión</button>
                     </div>
                 );
@@ -64,7 +76,7 @@ function App() {
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
-            <Sidebar {...propsDeNavegacion} />
+            <Sidebar {...propsDeNavegacion} usuario={usuario} />
             <main style={{ flex: 1 }}>
                 {renderVistaCentral()}
             </main>
