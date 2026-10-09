@@ -20,6 +20,7 @@
 
 # Local configuration that shouldn't be shared
 *.local
+seed.js
 
 ### Node ###
 # Node.js dependency directory, logs, and environment files
