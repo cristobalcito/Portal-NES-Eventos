@@ -9,7 +9,7 @@ import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
     const [usuario, setUsuario] = useState(null);
-    const [seccionActual, setSeccionActual] = useState('/home'); // Iniciar por defecto en /home
+    const [seccionActual, setSeccionActual] = useState('/home');
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -48,6 +48,23 @@ function App() {
         alSeleccionar: setSeccionActual,
     };
 
+    // Determinar ROL con fallback para variantes de nombres (rol / Rol / email)
+    const rolDetectado = 
+        usuario.rol || 
+        usuario.Rol || 
+        usuario.ROL || 
+        (usuario.email === 'gerente@nes-eventos.cl' ? 'GERENTE_GENERAL' : 'No asignado');
+
+    // Determinar RUT revisando las diferentes variantes posibles del backend
+    const rutDetectado = 
+        usuario.rut || 
+        usuario.Rut || 
+        usuario.RUT || 
+        usuario.rutPersona || 
+        usuario.run || 
+        usuario.Run || 
+        'No especificado';
+
     const renderVistaCentral = () => {
         switch (seccionActual) {
             case '/eventos':
@@ -57,7 +74,7 @@ function App() {
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
             case '/usuarios':
-                if (usuario?.rol !== 'GERENTE_GENERAL') {
+                if (rolDetectado !== 'GERENTE_GENERAL') {
                     return (
                         <div style={{ padding: '2rem', color: '#721c24', backgroundColor: '#f8d7da', margin: '2rem', borderRadius: '8px' }}>
                             <h2>Acceso Denegado</h2>
@@ -70,10 +87,10 @@ function App() {
                 return (
                     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
                         <h1>Portal NES Eventos</h1>
-                        <p>Hola, <strong>{usuario.nombre}</strong></p>
-                        <p>RUT: {usuario.rut || 'No especificado'}</p>
+                        <p>Hola, <strong>{usuario.nombre || usuario.Nombre || 'Usuario'}</strong></p>
+                        <p>RUT: {rutDetectado}</p>
                         <p>Email: {usuario.email || 'No especificado'}</p>
-                        <p>Rol: {usuario.rol || 'No asignado'}</p>
+                        <p>Rol: {rolDetectado}</p>
                         <button onClick={handleLogout}>Cerrar Sesión</button>
                     </div>
                 );
@@ -84,7 +101,7 @@ function App() {
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
-            <Sidebar {...propsDeNavegacion} usuario={usuario} />
+            <Sidebar {...propsDeNavegacion} usuario={{ ...usuario, rol: rolDetectado, rut: rutDetectado }} />
             <main style={{ flex: 1 }}>
                 {renderVistaCentral()}
             </main>
