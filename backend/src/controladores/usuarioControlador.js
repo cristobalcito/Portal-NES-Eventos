@@ -45,5 +45,160 @@ var obtenerUsuarios = async (req, res) => {
     });
   }
 };
+var crearUsuario = async (req, res) => {
+  try {
+    var { rut, nombre, email, password, rol } = req.body;
 
-module.exports = { obtenerUsuarios };
+    // 1. Validaciones de campos requeridos
+    if (!rut || !nombre || !email || !password || !rol) {
+      return res.status(400).json({
+        exito: false,
+        mensaje: 'Todos los campos son obligatorios (rut, nombre, email, password, rol).'
+      });
+    }
+
+    // 2. Definir la relación según el rol solicitado
+    var mapaRelacion = {
+      GERENTE_GENERAL: { gerenteGeneral: { create: {} } },
+      PERSONAL_OPERACIONES: { personalOperaciones: { create: {} } },
+      CLIENTE: { cliente: { create: {} } },
+      PERSONAL_EVENTUAL: { personalEventual: { create: {} } }
+    };
+
+    var relacionRol = mapaRelacion[rol];
+    if (!relacionRol) {
+      return res.status(400).json({
+        exito: false,
+        mensaje: 'Rol no válido. Valores permitidos: GERENTE_GENERAL, PERSONAL_OPERACIONES, CLIENTE, PERSONAL_EVENTUAL.'
+      });
+    }
+
+    // 3. Verificar duplicados de RUT o Email
+    var usuarioExistente = await prisma.usuario.findFirst({
+      where: {
+        OR: [
+          { rut: rut },
+          { email: email }
+        ]
+      }
+    });
+
+    if (usuarioExistente) {
+      return res.status(400).json({
+        exito: false,
+        mensaje: 'Ya existe una cuenta registrada con ese RUT o Email.'
+      });
+    }
+
+    // 4. Encriptar contraseña
+    var hashedPassword = await bcrypt.hash(password, 10);
+
+    // 5. Crear usuario y su relación de rol en una sola operación
+    var nuevoUsuario = await prisma.usuario.create({
+      data: {
+        rut: rut,
+        nombre: nombre,
+        email: email,
+        password: hashedPassword,
+        ...relacionRol
+      }
+    });
+
+    return res.status(201).json({
+      exito: true,
+      mensaje: 'Usuario creado exitosamente.',
+      datos: {
+        rut: nuevoUsuario.rut,
+        nombre: nuevoUsuario.nombre,
+        email: nuevoUsuario.email,
+        rol: rol
+      }
+    });
+  } catch (error) {
+    console.error('Error al crear usuario:', error);
+    return res.status(500).json({
+      exito: false,
+      mensaje: 'Error interno al crear el usuario.'
+    });
+  }
+};
+
+var modificarUsuario = async (req, res) => {
+  try {
+    var { rut } = req.params;
+    var { nombre, email, password, nuevoRol } = req.body;
+
+    var usuarioExiste = await prisma.usuario.findUnique({
+      where: { rut: rut }
+    });
+
+    if (!usuarioExiste) {
+      return res.status(404).json({
+        exito: false,
+        mensaje: 'El usuario a modificar no existe.'
+      });
+    }
+
+    // Si intenta cambiar a un email ya usado por otra cuenta
+    if (email && email !== usuarioExiste.email) {
+      var emailOcupado = await prisma.usuario.findUnique({
+        where: { email: email }
+      });
+      if (emailOcupado) {
+        return res.status(400).json({
+          exito: false,
+          mensaje: 'El correo electrónico ya está registrado por otro usuario.'
+        });
+      }
+    }
+
+    // Usamos transacción para garantizar que los cambios de rol y datos sean atómicos
+    await prisma.$transaction(async (tx) => {
+      // Si se especificó un nuevo rol, eliminar relaciones antiguas y crear la nueva
+      if (nuevoRol) {
+        await tx.gerenteGeneral.deleteMany({ where: { rut: rut } });
+        await tx.personalOperaciones.deleteMany({ where: { rut: rut } });
+        await tx.cliente.deleteMany({ where: { rut: rut } });
+        await tx.personalEventual.deleteMany({ where: { rut: rut } });
+
+        if (nuevoRol === 'GERENTE_GENERAL') {
+          await tx.gerenteGeneral.create({ data: { rut: rut } });
+        } else if (nuevoRol === 'PERSONAL_OPERACIONES') {
+          await tx.personalOperaciones.create({ data: { rut: rut } });
+        } else if (nuevoRol === 'CLIENTE') {
+          await tx.cliente.create({ data: { rut: rut } });
+        } else if (nuevoRol === 'PERSONAL_EVENTUAL') {
+          await tx.personalEventual.create({ data: { rut: rut } });
+        }
+      }
+
+      // Preparar campos a actualizar
+      var datosActualizar = {};
+      if (nombre) datosActualizar.nombre = nombre;
+      if (email) datosActualizar.email = email;
+      if (password) {
+        datosActualizar.password = await bcrypt.hash(password, 10);
+      }
+
+      if (Object.keys(datosActualizar).length > 0) {
+        await tx.usuario.update({
+          where: { rut: rut },
+          data: datosActualizar
+        });
+      }
+    });
+
+    return res.status(200).json({
+      exito: true,
+      mensaje: 'Usuario actualizado correctamente.'
+    });
+  } catch (error) {
+    console.error('Error al modificar usuario:', error);
+    return res.status(500).json({
+      exito: false,
+      mensaje: 'Error interno al modificar el usuario.'
+    });
+  }
+};
+
+module.exports = { obtenerUsuarios, crearUsuario };
