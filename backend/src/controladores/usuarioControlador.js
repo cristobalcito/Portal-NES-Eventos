@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+var { PrismaClient } = require('@prisma/client');
+var prisma = new PrismaClient();
 
-// Obtener la lista completa de usuarios con su rol deducido
-export const obtenerUsuarios = async (req, res) => {
+var obtenerUsuarios = async (req, res) => {
   try {
-    const usuarios = await prisma.usuario.findMany({
+    var usuarios = await prisma.usuario.findMany({
       include: {
         gerenteGeneral: true,
         personalOperaciones: true,
@@ -13,9 +12,8 @@ export const obtenerUsuarios = async (req, res) => {
       }
     });
 
-    // Mapeamos el resultado para entregar un campo "rol" explícito al frontend
-    const usuariosFormateados = usuarios.map((usuario) => {
-      let rol = 'SIN_ROL';
+    var usuariosFormateados = usuarios.map(function(usuario) {
+      var rol = 'SIN_ROL';
 
       if (usuario.gerenteGeneral) {
         rol = 'GERENTE_GENERAL';
@@ -27,12 +25,11 @@ export const obtenerUsuarios = async (req, res) => {
         rol = 'PERSONAL_EVENTUAL';
       }
 
-      // Quitamos la contraseña del objeto retornado
-      const { password, ...usuarioSinPassword } = usuario;
+      var { password, ...usuarioSinPassword } = usuario;
 
       return {
         ...usuarioSinPassword,
-        rol
+        rol: rol
       };
     });
 
@@ -48,3 +45,5 @@ export const obtenerUsuarios = async (req, res) => {
     });
   }
 };
+
+module.exports = { obtenerUsuarios };

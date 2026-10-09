@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
+var { PrismaClient } = require('@prisma/client');
+var prisma = new PrismaClient();
 
-export const verificarGerenteGeneral = async (req, res, next) => {
+var verificarGerenteGeneral = async (req, res, next) => {
   try {
-    const rutUsuario = req.headers['x-usuario-rut'];
+    var rutUsuario = req.headers['x-usuario-rut'];
 
     if (!rutUsuario) {
       return res.status(401).json({
@@ -12,8 +12,7 @@ export const verificarGerenteGeneral = async (req, res, next) => {
       });
     }
 
-    // Busca si existe una fila en GerenteGeneral para este RUT
-    const esGerente = await prisma.gerenteGeneral.findUnique({
+    var esGerente = await prisma.gerenteGeneral.findUnique({
       where: { rut: rutUsuario }
     });
 
@@ -33,3 +32,5 @@ export const verificarGerenteGeneral = async (req, res, next) => {
     });
   }
 };
+
+module.exports = { verificarGerenteGeneral };
