@@ -200,5 +200,41 @@ var modificarUsuario = async (req, res) => {
     });
   }
 };
+var eliminarUsuario = async (req, res) => {
+  try {
+    var { rut } = req.params;
 
-module.exports = { obtenerUsuarios, crearUsuario };
+    var usuarioExiste = await prisma.usuario.findUnique({
+      where: { rut: rut }
+    });
+
+    if (!usuarioExiste) {
+      return res.status(404).json({
+        exito: false,
+        mensaje: 'El usuario a eliminar no existe.'
+      });
+    }
+
+    // Eliminación en transacción borrando relaciones primero
+    await prisma.$transaction([
+      prisma.gerenteGeneral.deleteMany({ where: { rut: rut } }),
+      prisma.personalOperaciones.deleteMany({ where: { rut: rut } }),
+      prisma.cliente.deleteMany({ where: { rut: rut } }),
+      prisma.personalEventual.deleteMany({ where: { rut: rut } }),
+      prisma.usuario.delete({ where: { rut: rut } })
+    ]);
+
+    return res.status(200).json({
+      exito: true,
+      mensaje: 'Usuario eliminado exitosamente.'
+    });
+  } catch (error) {
+    console.error('Error al eliminar usuario:', error);
+    return res.status(500).json({
+      exito: false,
+      mensaje: 'Error interno al eliminar el usuario.'
+    });
+  }
+};
+
+module.exports = { obtenerUsuarios, crearUsuario, modificarUsuario, eliminarUsuario };
