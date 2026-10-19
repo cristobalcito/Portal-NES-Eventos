@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import ModalAgregarEvento from '../components/ModalAgregarEvento.jsx';
 
 export default function GestionarEventos() {
   const [eventos, setEventos] = useState([]);
   const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
   const [busqueda, setBusqueda] = useState('');
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState('');
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -35,10 +38,40 @@ export default function GestionarEventos() {
       });
   }, [API_URL]);
 
+  // Envía el nuevo evento al backend. Si falla, lanza el error para que el modal lo muestre.
+  const crearEvento = async (datosEvento) => {
+    const respuesta = await fetch(`${API_URL}/api/eventos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datosEvento)
+    });
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'No se pudo crear el evento');
+    }
+
+    // Se agrega a la lista manteniendo el orden por fecha y se deja seleccionado
+    setEventos((anteriores) =>
+      [...anteriores, datos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    );
+    setEventoSeleccionado(datos);
+    setBusqueda('');
+    setMensajeExito(`Evento "${datos.descripcion}" creado correctamente.`);
+    setTimeout(() => setMensajeExito(''), 3000);
+  };
+
+  const formatearHora = (fechaHora) =>
+    new Date(fechaHora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
   const listaEventos = Array.isArray(eventos) ? eventos : [];
 
+  // El buscador revisa descripción, lugar y encargado
+  const textoBusqueda = busqueda.toLowerCase();
   const eventosFiltrados = listaEventos.filter((evento) =>
-    (evento.descripcion || '').toLowerCase().includes(busqueda.toLowerCase())
+    [evento.descripcion, evento.lugar, evento.personal].some((campo) =>
+      (campo || '').toLowerCase().includes(textoBusqueda)
+    )
   );
 
   return (
@@ -80,7 +113,7 @@ export default function GestionarEventos() {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
-            <button style={{ 
+            <button onClick={() => setModalAbierto(true)} style={{ 
               backgroundColor: '#8a5b96', color: 'white', border: 'none', 
               padding: '12px 30px', borderRadius: '25px', fontWeight: 'bold',
               cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
@@ -97,6 +130,15 @@ export default function GestionarEventos() {
           </div>
         </div>
 
+        {mensajeExito && (
+          <div style={{
+            backgroundColor: '#e6f4ea', color: '#1e6b34', padding: '10px 20px',
+            borderRadius: '15px', marginBottom: '15px', fontWeight: 'bold', textAlign: 'center'
+          }}>
+            ✅ {mensajeExito}
+          </div>
+        )}
+
         {/* Lista de Eventos */}
         <div style={{ 
           backgroundColor: '#8a5b96', padding: '20px', border: '3px solid black', 
@@ -105,6 +147,10 @@ export default function GestionarEventos() {
           {listaEventos.length === 0 ? (
             <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>
               No hay eventos registrados.
+            </p>
+          ) : eventosFiltrados.length === 0 ? (
+            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>
+              No hay eventos que coincidan con "{busqueda}".
             </p>
           ) : (
             eventosFiltrados.map((evento, index) => (
@@ -142,6 +188,19 @@ export default function GestionarEventos() {
                 <p style={{ margin: '5px 0' }}>Organizador(a) / Personal: {eventoSeleccionado.personal || 'No asignado'}</p>
                 <p style={{ margin: '5px 0' }}>Ubicación: {eventoSeleccionado.lugar || 'No especificado'}</p>
                 <p style={{ margin: '5px 0' }}>
+                  Fecha: {eventoSeleccionado.fecha ? new Date(eventoSeleccionado.fecha).toLocaleDateString() : 'Sin fecha'}
+                </p>
+                {eventoSeleccionado.horario && (
+                  <p style={{ margin: '5px 0' }}>
+                    Horario: salida {formatearHora(eventoSeleccionado.horario.horaSalida)} · llegada {formatearHora(eventoSeleccionado.horario.horaLlegada)} · vuelta {formatearHora(eventoSeleccionado.horario.horaVuelta)}
+                  </p>
+                )}
+                <p style={{ margin: '5px 0' }}>
+                  Costo total: {eventoSeleccionado.costoTotal != null
+                    ? `$${Number(eventoSeleccionado.costoTotal).toLocaleString('es-CL')}`
+                    : 'No especificado'}
+                </p>
+                <p style={{ margin: '5px 0' }}>
                   Invitados: <span style={{ textDecoration: 'underline', fontWeight: 'bold' }}>
                     [{eventoSeleccionado.numPersonas || 0} personas]
                   </span>
@@ -154,6 +213,12 @@ export default function GestionarEventos() {
         </div>
         
       </main>
+
+      <ModalAgregarEvento
+        isOpen={modalAbierto}
+        onClose={() => setModalAbierto(false)}
+        onGuardar={crearEvento}
+      />
     </div>
   );
 }
