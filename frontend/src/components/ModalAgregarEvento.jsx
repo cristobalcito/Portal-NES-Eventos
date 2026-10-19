@@ -48,6 +48,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   const [formData, setFormData] = useState(estadoInicial);
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [alertaRegla, setAlertaRegla] = useState('');
 
   // Reiniciar (o precargar en modo edición) el formulario cada vez que se abre el modal
   useEffect(() => {
@@ -55,14 +56,66 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
       setFormData(eventoInicial ? estadoDesdeEvento(eventoInicial) : estadoInicial);
       setError('');
       setGuardando(false);
+      setAlertaRegla('');
     }
   }, [isOpen, eventoInicial]);
 
   if (!isOpen) return null;
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+  const validarReglasEnTiempoReal = async (nombreCampo, valorNuevo) => {
+    if (!esEdicion || !eventoInicial) return;
+
+    // A) Validar regla de cambio de fecha
+    if (nombreCampo === 'fecha' && valorNuevo) {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const nuevaFecha = new Date(`${valorNuevo}T00:00:00`);
+      const diffTiempo = nuevaFecha - hoy;
+      const diasRestantes = Math.ceil(diffTiempo / (1000 * 60 * 60 * 24));
+
+      try {
+        const res = await fetch(`${API_URL}/api/reglas-eventos/validar-fecha`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ diasRestantes })
+        });
+        const data = await res.json();
+        setAlertaRegla(data.mensaje || '');
+      } catch (err) {
+        console.error('Error al validar regla de fecha:', err);
+      }
+    }
+
+    // B) Validar regla de cambio de invitados (RF-FC-03)
+    if (nombreCampo === 'numPersonas' && valorNuevo) {
+      const fechaEvento = new Date(formData.fecha || eventoInicial.fecha);
+      const hoy = new Date();
+      const diasRestantes = Math.ceil((fechaEvento - hoy) / (1000 * 60 * 60 * 24));
+
+      try {
+        const res = await fetch(`${API_URL}/api/reglas-eventos/validar-invitados`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            diasRestantes,
+            cantidadActual: Number(eventoInicial.numPersonas || 0),
+            cantidadNueva: Number(valorNuevo)
+          })
+        });
+        const data = await res.json();
+        setAlertaRegla(data.mensaje || '');
+      } catch (err) {
+        console.error('Error al validar regla de invitados:', err);
+      }
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    validarReglasEnTiempoReal(name, value);
   };
 
   const validar = () => {
@@ -219,6 +272,21 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
               Los cambios de fecha e invitados siguen las reglas de anticipación de la empresa
               (pueden tener recargo o no estar permitidos cerca del evento).
             </p>
+          )}
+
+          {alertaRegla && (
+            <div style={{
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              border: '1px solid #ffeeba',
+              padding: '10px 14px',
+              borderRadius: '10px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              margin: '5px 0'
+            }}>
+              ⚠️ Regla de negocio: {alertaRegla}
+            </div>
           )}
 
           {error && (
