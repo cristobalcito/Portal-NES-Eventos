@@ -11,6 +11,33 @@ export default function PersonalPagina() {
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+  // Helper para obtener el RUT sin importar la estructura que devuelva el backend
+  const obtenerRut = (p) => {
+    if (!p) return 'No especificado';
+    return (
+      p.rut ||
+      p.Rut ||
+      p.RUT ||
+      p.rutPersona ||
+      p.usuario?.rut ||
+      p.usuario?.Rut ||
+      'No especificado'
+    );
+  };
+
+  // Helper para obtener el Rol
+  const obtenerRol = (p) => {
+    if (!p) return 'No especificado';
+    return (
+      p.rol ||
+      p.Rol ||
+      p.ROL ||
+      p.tipoPersona ||
+      p.usuario?.rol ||
+      'No especificado'
+    );
+  };
+
   const cargarPersonal = () => {
     setCargando(true);
     fetch(`${API_URL}/api/personal`, {
@@ -25,14 +52,14 @@ export default function PersonalPagina() {
         }
         return Array.isArray(datos) ? datos : [];
       })
-      .then(datos => {
+      .then((datos) => {
         setPersonal(datos);
         if (datos.length > 0) {
           setPersonalSeleccionado(datos[0]);
         }
       })
-      .catch(errorCarga => {
-        console.error("Error al cargar personal:", errorCarga);
+      .catch((errorCarga) => {
+        console.error('Error al cargar personal:', errorCarga);
         setError(errorCarga.message);
         setPersonal([]);
       })
@@ -43,11 +70,11 @@ export default function PersonalPagina() {
     cargarPersonal();
   }, []);
 
-  const personalFiltrado = personal.filter(p => {
+  const personalFiltrado = personal.filter((p) => {
     const termino = busqueda.toLowerCase().trim();
-    const nombre = (p.nombre || '').toLowerCase();
-    const rol = (p.Rol || p.rol || '').toLowerCase();
-    const rut = (p.Rut || p.rut || '').toLowerCase();
+    const nombre = (p.nombre || p.Nombre || p.usuario?.nombre || '').toLowerCase();
+    const rol = obtenerRol(p).toLowerCase();
+    const rut = obtenerRut(p).toLowerCase();
 
     return nombre.includes(termino) || rol.includes(termino) || rut.includes(termino);
   });
@@ -60,7 +87,7 @@ export default function PersonalPagina() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
         },
-        body: JSON.stringify(nuevo)
+        body: JSON.stringify(nuevo),
       });
 
       if (!respuesta.ok) {
@@ -68,7 +95,7 @@ export default function PersonalPagina() {
       }
 
       const creado = await respuesta.json();
-      setPersonal(prev => [creado, ...prev]);
+      setPersonal((prev) => [creado, ...prev]);
       setPersonalSeleccionado(creado);
     } catch (err) {
       console.error('Error al guardar personal:', err);
@@ -156,7 +183,7 @@ export default function PersonalPagina() {
           ) : (
             personalFiltrado.map((p, index) => (
               <div 
-                key={index} 
+                key={p.id || obtenerRut(p) || index} 
                 onClick={() => setPersonalSeleccionado(p)}
                 style={{ 
                   backgroundColor: '#d499a7', 
@@ -172,7 +199,7 @@ export default function PersonalPagina() {
                 }}
               >
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                  {p.nombre} | {p.Rol || p.rol}
+                  {p.nombre || p.Nombre || p.usuario?.nombre} | {obtenerRol(p)}
                 </span>
                 <div style={{ display: 'flex', gap: '15px' }}>
                   <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
@@ -197,10 +224,12 @@ export default function PersonalPagina() {
           {personalSeleccionado ? (
             <>
               <div>
-                <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{personalSeleccionado.nombre}</h2>
+                <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
+                  {personalSeleccionado.nombre || personalSeleccionado.Nombre || 'Sin nombre'}
+                </h2>
                 <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
-                  <p style={{ margin: '5px 0' }}>Rut: {personalSeleccionado.Rut || personalSeleccionado.rut || 'No especificado'}</p>
-                  <p style={{ margin: '5px 0' }}>Rol: {personalSeleccionado.Rol || personalSeleccionado.rol || 'No especificado'}</p>
+                  <p style={{ margin: '5px 0' }}>Rut: {obtenerRut(personalSeleccionado)}</p>
+                  <p style={{ margin: '5px 0' }}>Rol: {obtenerRol(personalSeleccionado)}</p>
                   <p style={{ margin: '5px 0' }}>Fecha nacimiento: {personalSeleccionado.fechaNacimiento || 'xx/xx/xx'}</p>
                   <p style={{ margin: '5px 0' }}>Estado: {personalSeleccionado.Estado || personalSeleccionado.estado || 'No especificado'}</p>
                   <p style={{ margin: '5px 0' }}>Teléfono: {personalSeleccionado.telefono || personalSeleccionado.Telefono || 'No especificado'}</p>

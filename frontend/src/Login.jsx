@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 export default function Login({ onLoginSuccess }) {
-  const [email, setEmail] = useState('');
+  const [identificador, setIdentificador] = useState(''); // Puede ser email o RUT
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -17,7 +17,12 @@ export default function Login({ onLoginSuccess }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        // Enviamos tanto email como rut con el valor ingresado
+        body: JSON.stringify({ 
+          email: identificador, 
+          rut: identificador, 
+          password 
+        }),
       });
 
       const data = await respuesta.json();
@@ -26,11 +31,17 @@ export default function Login({ onLoginSuccess }) {
         throw new Error(data.error || 'Ocurrió un error al iniciar sesión');
       }
 
+      // Aseguramos que el objeto usuario tenga una propiedad rut válida
+      const usuarioFinal = {
+        ...data.usuario,
+        rut: data.usuario?.rut || data.usuario?.Rut || data.usuario?.RUT || identificador
+      };
+
       localStorage.setItem('token', data.token);
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
+      localStorage.setItem('usuario', JSON.stringify(usuarioFinal));
 
       if (onLoginSuccess) {
-        onLoginSuccess(data.usuario);
+        onLoginSuccess(usuarioFinal);
       }
     } catch (err) {
       setError(err.message);
@@ -49,12 +60,12 @@ export default function Login({ onLoginSuccess }) {
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Correo Electrónico</label>
+            <label style={styles.label}>Correo Electrónico o RUT</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ejemplo@nes-eventos.cl"
+              type="text"
+              value={identificador}
+              onChange={(e) => setIdentificador(e.target.value)}
+              placeholder="ejemplo@nes-eventos.cl o 12345678-9"
               required
               style={styles.input}
             />
@@ -104,13 +115,6 @@ const styles = {
     height: 'auto',
     display: 'block',
     margin: '0 auto 1rem auto',
-  },
-  titulo: {
-    margin: 0,
-    fontSize: '1.75rem',
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
   },
   subtitulo: {
     marginTop: '0.5rem',

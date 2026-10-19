@@ -1,8 +1,10 @@
 // frontend/src/components/SidebarComponente.jsx
+// frontend/src/components/SidebarComponente.jsx
 import React from 'react';
 import { obtenerEstiloBoton } from '../servicios/sidebarServicio.js';
 
-export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
+export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar, usuario }) {
+  // Lista base de opciones para todos los usuarios
   const menuItems = [
     { nombre: 'Home', ruta: '/home' },
     { nombre: 'Gestionar eventos', ruta: '/eventos' },
@@ -10,6 +12,11 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
     { nombre: 'Inventario', ruta: '/inventario' },
     { nombre: 'Catálogo', ruta: '/catalogo' },
   ];
+
+  // Si el usuario logueado es GERENTE_GENERAL, agregamos la opción exclusiva
+  if (usuario?.rol === 'GERENTE_GENERAL') {
+    menuItems.push({ nombre: 'Gestión de usuarios', ruta: '/usuarios' });
+  }
 
   return (
     <aside style={{
@@ -22,7 +29,7 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
       padding: '24px 0',
       boxSizing: 'border-box'
     }}>
-      {/* Icono de usuario */}
+      {/* Icono e información de usuario */}
       <div style={{ textAlign: 'center', padding: '0 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
         <div style={{
           width: '72px',
@@ -35,10 +42,16 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
           margin: '0 auto 12px',
           fontSize: '34px'
         }}>
-
           👤
         </div>
-        <p style={{ margin: 0, fontSize: '15px' }}>[Nombre de usuario]</p>
+        <p style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>
+          {usuario?.nombre || '[Nombre de usuario]'}
+        </p>
+        {usuario?.rol && (
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.8 }}>
+            {usuario.rol}
+          </p>
+        )}
       </div>
 
       {/* Menú de navegación */}
