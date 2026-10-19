@@ -15,19 +15,48 @@ const estadoInicial = {
 // Une una fecha (YYYY-MM-DD) con una hora (HH:MM) en hora local y la pasa a ISO
 const unirFechaHora = (fecha, hora) => new Date(`${fecha}T${hora}:00`).toISOString();
 
-export default function ModalAgregarEvento({ isOpen, onClose, onGuardar }) {
+const dosDigitos = (n) => String(n).padStart(2, '0');
+
+// Pasa una fecha guardada a formato YYYY-MM-DD (hora local) para el input date
+const aFechaInput = (valor) => {
+  const d = new Date(valor);
+  return `${d.getFullYear()}-${dosDigitos(d.getMonth() + 1)}-${dosDigitos(d.getDate())}`;
+};
+
+// Pasa una fecha guardada a formato HH:MM (hora local) para el input time
+const aHoraInput = (valor) => {
+  const d = new Date(valor);
+  return `${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`;
+};
+
+// Arma el estado del formulario a partir de un evento existente
+const estadoDesdeEvento = (evento) => ({
+  descripcion: evento.descripcion || '',
+  lugar: evento.lugar || '',
+  fecha: evento.fecha ? aFechaInput(evento.fecha) : '',
+  numPersonas: evento.numPersonas != null ? String(evento.numPersonas) : '',
+  costoTotal: evento.costoTotal != null ? String(evento.costoTotal) : '',
+  personal: evento.personal && evento.personal !== 'No asignado' ? evento.personal : '',
+  horaSalida: evento.horario ? aHoraInput(evento.horario.horaSalida) : '',
+  horaLlegada: evento.horario ? aHoraInput(evento.horario.horaLlegada) : '',
+  horaVuelta: evento.horario ? aHoraInput(evento.horario.horaVuelta) : ''
+});
+
+// Si recibe "eventoInicial" funciona en modo edición; si no, en modo agregar
+export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoInicial = null }) {
+  const esEdicion = Boolean(eventoInicial);
   const [formData, setFormData] = useState(estadoInicial);
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  // Reiniciar el formulario cada vez que se abre el modal
+  // Reiniciar (o precargar en modo edición) el formulario cada vez que se abre el modal
   useEffect(() => {
     if (isOpen) {
-      setFormData(estadoInicial);
+      setFormData(eventoInicial ? estadoDesdeEvento(eventoInicial) : estadoInicial);
       setError('');
       setGuardando(false);
     }
-  }, [isOpen]);
+  }, [isOpen, eventoInicial]);
 
   if (!isOpen) return null;
 
@@ -43,7 +72,8 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar }) {
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    if (new Date(`${formData.fecha}T00:00:00`) < hoy) return 'La fecha no puede ser anterior a hoy.';
+    const fechaCambio = !esEdicion || formData.fecha !== aFechaInput(eventoInicial.fecha);
+    if (fechaCambio && new Date(`${formData.fecha}T00:00:00`) < hoy) return 'La fecha no puede ser anterior a hoy.';
 
     const personas = Number(formData.numPersonas);
     if (!Number.isInteger(personas) || personas <= 0) return 'El N° de personas debe ser un entero mayor a 0.';
@@ -121,7 +151,9 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar }) {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           borderBottom: '2px solid #8a5b96', paddingBottom: '10px', marginBottom: '20px'
         }}>
-          <h2 style={{ margin: 0, color: '#523354', fontSize: '22px' }}>📅 Agregar evento</h2>
+          <h2 style={{ margin: 0, color: '#523354', fontSize: '22px' }}>
+            {esEdicion ? '✏️ Editar evento' : '📅 Agregar evento'}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -182,6 +214,13 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar }) {
             </div>
           </fieldset>
 
+          {esEdicion && (
+            <p style={{ margin: 0, color: '#555', fontSize: '12px' }}>
+              Los cambios de fecha e invitados siguen las reglas de anticipación de la empresa
+              (pueden tener recargo o no estar permitidos cerca del evento).
+            </p>
+          )}
+
           {error && (
             <p style={{ margin: 0, color: '#b3261e', backgroundColor: '#fdecea', padding: '8px 12px', borderRadius: '10px', fontSize: '14px' }}>
               {error}
@@ -207,7 +246,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar }) {
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}
             >
-              {guardando ? 'Guardando...' : 'Guardar'}
+              {guardando ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Guardar'}
             </button>
           </div>
         </form>

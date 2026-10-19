@@ -7,6 +7,10 @@ export default function GestionarEventos() {
   const [busqueda, setBusqueda] = useState('');
   const [modalAbierto, setModalAbierto] = useState(false);
   const [mensajeExito, setMensajeExito] = useState('');
+  const [eventoEditando, setEventoEditando] = useState(null);
+  const [eventoAEliminar, setEventoAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState('');
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -57,8 +61,80 @@ export default function GestionarEventos() {
     );
     setEventoSeleccionado(datos);
     setBusqueda('');
-    setMensajeExito(`Evento "${datos.descripcion}" creado correctamente.`);
-    setTimeout(() => setMensajeExito(''), 3000);
+    mostrarMensaje(`Evento "${datos.descripcion}" creado correctamente.`);
+  };
+
+  // Muestra un mensaje verde por unos segundos
+  const mostrarMensaje = (texto, duracion = 3000) => {
+    setMensajeExito(texto);
+    setTimeout(() => setMensajeExito(''), duracion);
+  };
+
+  // Envía los cambios de un evento. El backend aplica las reglas de fecha e invitados.
+  const editarEvento = async (datosEvento) => {
+    const id = eventoEditando.idPE || eventoEditando.id;
+    const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datosEvento)
+    });
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'No se pudo editar el evento');
+    }
+
+    const editado = datos.evento;
+    setEventos((anteriores) =>
+      anteriores
+        .map((e) => ((e.idPE || e.id) === (editado.idPE || editado.id) ? editado : e))
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    );
+    setEventoSeleccionado(editado);
+
+    const avisos = Array.isArray(datos.avisos) && datos.avisos.length > 0 ? ` ${datos.avisos.join(' ')}` : '';
+    mostrarMensaje(`Evento "${editado.descripcion}" actualizado.${avisos}`, avisos ? 6000 : 3000);
+  };
+
+  // Elimina el evento confirmado en el cuadro de diálogo
+  const confirmarEliminar = async () => {
+    const id = eventoAEliminar.idPE || eventoAEliminar.id;
+    try {
+      setEliminando(true);
+      setErrorEliminar('');
+      const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, { method: 'DELETE' });
+      const datos = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) {
+        throw new Error(datos.mensaje || 'No se pudo eliminar el evento');
+      }
+
+      const restantes = eventos.filter((e) => (e.idPE || e.id) !== id);
+      setEventos(restantes);
+      if (eventoSeleccionado && (eventoSeleccionado.idPE || eventoSeleccionado.id) === id) {
+        setEventoSeleccionado(restantes[0] || null);
+      }
+      mostrarMensaje(`Evento "${eventoAEliminar.descripcion}" eliminado.`);
+      setEventoAEliminar(null);
+    } catch (err) {
+      setErrorEliminar(err.message);
+    } finally {
+      setEliminando(false);
+    }
+  };
+
+  const abrirAgregar = () => {
+    setEventoEditando(null);
+    setModalAbierto(true);
+  };
+
+  const abrirEditar = (evento) => {
+    setEventoEditando(evento);
+    setModalAbierto(true);
+  };
+
+  const cerrarModal = () => {
+    setModalAbierto(false);
+    setEventoEditando(null);
   };
 
   const formatearHora = (fechaHora) =>
@@ -113,7 +189,7 @@ export default function GestionarEventos() {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
-            <button onClick={() => setModalAbierto(true)} style={{ 
+            <button onClick={abrirAgregar} style={{ 
               backgroundColor: '#8a5b96', color: 'white', border: 'none', 
               padding: '12px 30px', borderRadius: '25px', fontWeight: 'bold',
               cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
@@ -168,8 +244,16 @@ export default function GestionarEventos() {
                   {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'}
                 </span>
                 <div style={{ display: 'flex', gap: '15px' }}>
-                  <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>📝</button>
-                  <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>🗑️</button>
+                  <button
+                    title="Editar evento"
+                    onClick={(e) => { e.stopPropagation(); abrirEditar(evento); }}
+                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                  >📝</button>
+                  <button
+                    title="Eliminar evento"
+                    onClick={(e) => { e.stopPropagation(); setErrorEliminar(''); setEventoAEliminar(evento); }}
+                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                  >🗑️</button>
                 </div>
               </div>
             ))
@@ -216,9 +300,64 @@ export default function GestionarEventos() {
 
       <ModalAgregarEvento
         isOpen={modalAbierto}
-        onClose={() => setModalAbierto(false)}
-        onGuardar={crearEvento}
+        eventoInicial={eventoEditando}
+        onClose={cerrarModal}
+        onGuardar={eventoEditando ? editarEvento : crearEvento}
       />
+
+      {/* Confirmación para eliminar */}
+      {eventoAEliminar && (
+        <div
+          onClick={() => !eliminando && setEventoAEliminar(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white', borderRadius: '20px', width: '90%', maxWidth: '420px',
+              padding: '25px 30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', boxSizing: 'border-box'
+            }}
+          >
+            <h2 style={{ margin: '0 0 10px 0', color: '#523354', fontSize: '22px' }}>🗑️ Eliminar evento</h2>
+            <p style={{ margin: '0 0 15px 0', fontSize: '15px', lineHeight: 1.5 }}>
+              ¿Seguro que quieres eliminar <strong>"{eventoAEliminar.descripcion}"</strong>? Esta acción no se puede deshacer.
+            </p>
+
+            {errorEliminar && (
+              <p style={{ margin: '0 0 15px 0', color: '#b3261e', backgroundColor: '#fdecea', padding: '8px 12px', borderRadius: '10px', fontSize: '14px' }}>
+                {errorEliminar}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setEventoAEliminar(null)}
+                disabled={eliminando}
+                style={{ backgroundColor: '#aaa', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarEliminar}
+                disabled={eliminando}
+                style={{
+                  backgroundColor: '#c0392b', color: 'white', border: 'none', padding: '10px 25px',
+                  borderRadius: '20px', fontWeight: 'bold', cursor: eliminando ? 'wait' : 'pointer',
+                  opacity: eliminando ? 0.7 : 1
+                }}
+              >
+                {eliminando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
