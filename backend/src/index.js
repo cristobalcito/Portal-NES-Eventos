@@ -13,6 +13,7 @@ var clientesRouter = require('./rutas/clientes');
 var eventosRouter = require('./rutas/eventos');
 var inventarioRouter = require('./rutas/inventario');
 var personalRouter = require('./rutas/personal');
+var personalExternoRouter = require('./rutas/personalExternoRutas');
 var catalogoRouter = require('./rutas/catalogoRutas');
 var usuariosRouter = require('./rutas/usuarioRutas');
 
@@ -33,6 +34,7 @@ app.use('/api/clientes', clientesRouter);
 app.use('/api/eventos', eventosRouter);
 app.use('/api/inventario', inventarioRouter);
 app.use('/api/personal', personalRouter);
+app.use('/api/personal-externo', personalExternoRouter);
 app.use('/api/catalogo', catalogoRouter);
 app.use('/api/usuarios', usuariosRouter);
 
