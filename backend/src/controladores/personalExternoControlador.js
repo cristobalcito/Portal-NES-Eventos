@@ -42,7 +42,13 @@ var registrarPersonal = async function(req, res) {
         }
       },
       include: {
-        usuario: true
+         usuario: {
+          select: {
+            rut: true,
+            nombre: true,
+            email: true
+          }
+        }
       }
     });
 
@@ -68,7 +74,13 @@ var obtenerPersonal = async function(req, res) {
   try {
     var listaPersonal = await prisma.personalEventual.findMany({
       include: {
-        usuario: true
+        usuario: {
+          select: {
+            rut: true,
+            nombre: true,
+            email: true
+          }
+        }
       }
     });
 

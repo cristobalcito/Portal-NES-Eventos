@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ModalRegistro from '../components/ModalRegistro';
+import ModalPersonalEventual from '../components/ModalPersonalEventual';
 
 export default function PersonalPagina() {
   const [personal, setPersonal] = useState([]);
@@ -40,7 +40,7 @@ export default function PersonalPagina() {
 
   const cargarPersonal = () => {
     setCargando(true);
-    fetch(`${API_URL}/api/personal`, {
+    fetch(`${API_URL}/api/personal-externo`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
       },
@@ -50,7 +50,7 @@ export default function PersonalPagina() {
         if (!respuesta.ok) {
           throw new Error(datos.error || 'No se pudo cargar el personal.');
         }
-        return Array.isArray(datos) ? datos : [];
+        return Array.isArray(datos.datos) ? datos.datos : [];
       })
       .then((datos) => {
         setPersonal(datos);
@@ -158,7 +158,7 @@ export default function PersonalPagina() {
                 fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}
             >
-              Agregar personal
+              Agregar personal eventual 
             </button>
           </div>
         </div>
@@ -225,16 +225,57 @@ export default function PersonalPagina() {
             <>
               <div>
                 <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
-                  {personalSeleccionado.nombre || personalSeleccionado.Nombre || 'Sin nombre'}
+                  {personalSeleccionado.usuario?.nombre || 'Sin nombre'}
                 </h2>
-                <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
-                  <p style={{ margin: '5px 0' }}>Rut: {obtenerRut(personalSeleccionado)}</p>
-                  <p style={{ margin: '5px 0' }}>Rol: {obtenerRol(personalSeleccionado)}</p>
-                  <p style={{ margin: '5px 0' }}>Fecha nacimiento: {personalSeleccionado.fechaNacimiento || 'xx/xx/xx'}</p>
-                  <p style={{ margin: '5px 0' }}>Estado: {personalSeleccionado.Estado || personalSeleccionado.estado || 'No especificado'}</p>
-                  <p style={{ margin: '5px 0' }}>Teléfono: {personalSeleccionado.telefono || personalSeleccionado.Telefono || 'No especificado'}</p>
+                <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '18px 30px',
+                  fontSize: '16px',
+                  lineHeight: '1.5'
+                }}
+              >
+                <div>
+                  <strong>RUT:</strong>
+                  <div>{personalSeleccionado.rut}</div>
+                </div>
+
+                <div>
+                  <strong>Rol:</strong>
+                  <div>{personalSeleccionado.rol}</div>
+                </div>
+
+                <div>
+                  <strong>Teléfono:</strong>
+                  <div>{personalSeleccionado.fono || 'No especificado'}</div>
+                </div>
+
+                <div>
+                  <strong>Disponibilidad:</strong>
+                  <div>
+                    {personalSeleccionado.disponibilidad || 'No especificada'}
+                  </div>
+                </div>
+
+                <div>
+                  <strong>Talla de uniforme:</strong>
+                  <div>{personalSeleccionado.tallaDeRopa || 'No especificada'}</div>
+                </div>
+
+                <div>
+                  <strong>Evaluación de desempeño:</strong>
+                  <div>
+                    {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
+                  </div>
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <strong>Experiencia:</strong>
+                  <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
                 </div>
               </div>
+            </div>
 
               <div style={{
                 width: '90px',
@@ -257,11 +298,9 @@ export default function PersonalPagina() {
         
       </main>
 
-      <ModalRegistro 
+      <ModalPersonalEventual
         isOpen={mostrarModal}
-        tipo="persona"
         onClose={() => setMostrarModal(false)}
-        onGuardar={handleGuardarNuevoPersonal}
       />
     </div>
   );
