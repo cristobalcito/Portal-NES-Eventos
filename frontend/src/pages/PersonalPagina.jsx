@@ -79,29 +79,74 @@ export default function PersonalPagina() {
     return nombre.includes(termino) || rol.includes(termino) || rut.includes(termino);
   });
 
-  const handleGuardarNuevoPersonal = async (nuevo) => {
-    try {
-      const respuesta = await fetch(`${API_URL}/api/personal`, {
-        method: 'POST',
+  const handleGuardarNuevoPersonal = async (formulario) => {
+  if (!personalSeleccionado) {
+    alert('Primero debes seleccionar un trabajador.');
+    return;
+  }
+
+  try {
+    const rut = personalSeleccionado.rut;
+
+    // Solo enviamos antecedentes laborales, no datos de la cuenta
+    const {
+      rol,
+      disponibilidad,
+      fono,
+      experiencia,
+      datosDePago,
+      tallaDeRopa
+    } = formulario;
+
+    const respuesta = await fetch(
+      `${API_URL}/api/personal-externo/${encodeURIComponent(rut)}`,
+      {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
         },
-        body: JSON.stringify(nuevo),
-      });
-
-      if (!respuesta.ok) {
-        throw new Error('Error al guardar en el servidor');
+        body: JSON.stringify({
+          rol,
+          disponibilidad,
+          fono,
+          experiencia,
+          datosDePago,
+          tallaDeRopa
+        })
       }
+    );
 
-      const creado = await respuesta.json();
-      setPersonal((prev) => [creado, ...prev]);
-      setPersonalSeleccionado(creado);
-    } catch (err) {
-      console.error('Error al guardar personal:', err);
-      alert('No se pudo guardar la persona en la base de datos.');
+    const resultado = await respuesta.json();
+
+    if (!respuesta.ok || !resultado.success) {
+      throw new Error(
+        resultado.mensaje || 'No se pudo actualizar la ficha laboral.'
+      );
     }
-  };
+
+    // Actualizar el listado sin duplicar trabajadores
+    const actualizado = resultado.datos;
+
+    setPersonal((anterior) =>
+      anterior.map((persona) =>
+        persona.rut === rut ? actualizado : persona
+      )
+    );
+
+    // Actualizar la tarjeta de detalles
+    setPersonalSeleccionado(actualizado);
+
+    // Cerrar el modal solamente si se guardó correctamente
+    setMostrarModal(false);
+
+    alert('Ficha laboral actualizada correctamente.');
+
+  } catch (error) {
+    console.error('Error al actualizar personal eventual:', error);
+    alert(error.message);
+  }
+};
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
@@ -158,7 +203,7 @@ export default function PersonalPagina() {
                 fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}
             >
-              Agregar personal eventual 
+              Completar ficha laboral 
             </button>
           </div>
         </div>
@@ -300,7 +345,10 @@ export default function PersonalPagina() {
 
       <ModalPersonalEventual
         isOpen={mostrarModal}
+        personalSeleccionado={personalSeleccionado}
         onClose={() => setMostrarModal(false)}
+        onGuardar={handleGuardarNuevoPersonal}
+
       />
     </div>
   );

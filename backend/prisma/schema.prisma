@@ -49,14 +49,15 @@ model Cliente {
 model PersonalEventual {
   rut                 String  @id
   usuario             Usuario @relation(fields: [rut], references: [rut], onDelete: Cascade)
-  rol                 String
-  disponibilidad      String
-  fono                String
-  experiencia         String
-  evaluacionDesempeno String
-  datosDePago         String
-  tallaDeRopa         String
-  notaFinal           Float
+
+  rol                 String?
+  disponibilidad      String?
+  fono                String?
+  experiencia         String?
+  evaluacionDesempeno String?
+  datosDePago         String?
+  tallaDeRopa         String?
+  notaFinal           Float?
 }
 
 // Recursos de la compañía
