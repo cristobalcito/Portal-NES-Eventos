@@ -6,43 +6,50 @@ var prisma = new PrismaClient();
  */
 var registrarPersonal = async function(req, res) {
   try {
-    var { 
-      rut, 
-      nombre, 
-      email, 
-      password, 
-      rol, 
-      disponibilidad, 
-      fono, 
-      experiencia, 
-      datosDePago, 
-      tallaDeRopa 
+    var { rut } = req.params;
+
+    var {
+      rol,
+      disponibilidad,
+      fono,
+      experiencia,
+      datosDePago,
+      tallaDeRopa
     } = req.body;
 
-    var nuevoPersonal = await prisma.personalEventual.create({
+    // Validar que se haya enviado el RUT
+    if (!rut) {
+      return res.status(400).json({
+        success: false,
+        mensaje: 'El RUT es obligatorio.'
+      });
+    }
+
+    // Buscar la ficha creada previamente por el GG
+    var personalExistente = await prisma.personalEventual.findUnique({
+      where: { rut: rut }
+    });
+
+    if (!personalExistente) {
+      return res.status(404).json({
+        success: false,
+        mensaje: 'El trabajador no existe. Primero debe ser registrado por el Gerente General.'
+      });
+    }
+
+    // Actualizar los antecedentes laborales
+    var personalActualizado = await prisma.personalEventual.update({
+      where: { rut: rut },
       data: {
         rol: rol,
         disponibilidad: disponibilidad,
         fono: fono,
         experiencia: experiencia,
-        evaluacionDesempeno: 'Sin calificar',
         datosDePago: datosDePago,
-        tallaDeRopa: tallaDeRopa,
-        notaFinal: 5.0,
-        usuario: {
-          connectOrCreate: {
-            where: { rut: rut },
-            create: {
-              rut: rut,
-              nombre: nombre,
-              email: email || `${rut.replace(/[^0-9kK]/g, '')}@nes.cl`,
-              password: password || 'temporal123'
-            }
-          }
-        }
+        tallaDeRopa: tallaDeRopa
       },
       include: {
-         usuario: {
+        usuario: {
           select: {
             rut: true,
             nombre: true,
@@ -52,17 +59,18 @@ var registrarPersonal = async function(req, res) {
       }
     });
 
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
-      mensaje: 'Personal eventual registrado exitosamente',
-      datos: nuevoPersonal
+      mensaje: 'Ficha de personal eventual actualizada correctamente.',
+      datos: personalActualizado
     });
+
   } catch (error) {
-    console.error('Error al registrar personal eventual:', error);
+    console.error('Error al actualizar personal eventual:', error);
+
     return res.status(500).json({
       success: false,
-      mensaje: 'No se pudo registrar el personal eventual en la base de datos.',
-      error: error.message
+      mensaje: 'No se pudo actualizar la ficha del trabajador.'
     });
   }
 };

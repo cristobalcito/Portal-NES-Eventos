@@ -14,18 +14,29 @@ const formularioInicial = {
 export default function ModalPersonalEventual({
   isOpen,
   onClose,
-  onGuardar
+  onGuardar,
+  personalSeleccionado
 }) {
   const [formulario, setFormulario] = useState(formularioInicial);
 
   const [vistaPrevia, setVistaPrevia] = useState(false);
 
 useEffect(() => {
-  if (isOpen) {
-    setFormulario({ ...formularioInicial });
+  if (isOpen && personalSeleccionado) {
+    setFormulario({
+      rut: personalSeleccionado.rut || '',
+      nombre: personalSeleccionado.usuario?.nombre || '',
+      rol: personalSeleccionado.rol || '',
+      disponibilidad: personalSeleccionado.disponibilidad || '',
+      fono: personalSeleccionado.fono || '',
+      experiencia: personalSeleccionado.experiencia || '',
+      datosDePago: personalSeleccionado.datosDePago || '',
+      tallaDeRopa: personalSeleccionado.tallaDeRopa || ''
+    });
+
     setVistaPrevia(false);
   }
-}, [isOpen]);
+}, [isOpen, personalSeleccionado]);
 
   if (!isOpen) return null;
 
@@ -43,11 +54,15 @@ useEffect(() => {
   const handleSubmit = (e) => {
   e.preventDefault();
 
-  // Los campos requeridos son validados por el formulario HTML.
-  // Por ahora no enviamos información al backend.
+  
   setVistaPrevia(true);
 };
 
+const handleConfirmarGuardado = async () => {
+  if (typeof onGuardar === 'function') {
+    await onGuardar(formulario);
+  }
+};
   return (
     <div style={estilos.fondo}>
       <div style={estilos.modal}>
@@ -68,6 +83,7 @@ useEffect(() => {
               nombre="rut"
               valor={formulario.rut}
               onChange={handleChange}
+              soloLectura
             />
 
             <Campo
@@ -75,6 +91,7 @@ useEffect(() => {
               nombre="nombre"
               valor={formulario.nombre}
               onChange={handleChange}
+              soloLectura
             />
 
             <Campo
@@ -154,8 +171,19 @@ useEffect(() => {
             </button>
 
             <button type="submit" style={estilos.guardar}>
-                Revisar datos
+              Revisar datos
             </button>
+
+            {vistaPrevia && (
+              <button
+                type="button"
+                onClick={handleConfirmarGuardado}
+                disabled={!onGuardar}
+                style={estilos.guardar}
+              >
+                Confirmar y guardar
+              </button>
+            )}
           </div>
 
           <p style={{ fontSize: '12px', color: '#666' }}>
@@ -168,7 +196,7 @@ useEffect(() => {
   );
 }
 
-function Campo({ etiqueta, nombre, valor, onChange }) {
+function Campo({ etiqueta, nombre, valor, onChange, soloLectura = false }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
       <strong style={{ fontSize: '13px' }}>{etiqueta}</strong>
@@ -178,8 +206,12 @@ function Campo({ etiqueta, nombre, valor, onChange }) {
         name={nombre}
         value={valor}
         onChange={onChange}
-        required
-        style={estilos.input}
+        readOnly={soloLectura}
+        style={{
+          ...estilos.input,
+          backgroundColor: soloLectura ? '#f0f0f0' : 'white',
+          cursor: soloLectura ? 'not-allowed' : 'text'
+        }}
       />
     </label>
   );

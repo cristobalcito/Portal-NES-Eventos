@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../lib/prisma');
+const { getJwtSecret } = require('../lib/jwt');
 
 const autenticarToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -10,7 +12,7 @@ const autenticarToken = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const secret = process.env.JWT_SECRET || 'clave_secreta_para_tokens_locales';
+    const secret = getJwtSecret();
     const decoded = jwt.verify(token, secret);
     req.usuario = decoded;
     next();
@@ -20,8 +22,26 @@ const autenticarToken = (req, res, next) => {
 };
 
 const autorizarRoles = (...rolesPermitidos) => {
-  return (req, res, next) => {
-    if (!req.usuario || !rolesPermitidos.includes(req.usuario.rol)) {
+  return async (req, res, next) => {
+    if (!req.usuario || typeof req.usuario.rut !== 'string' || !req.usuario.rut) {
+      return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
+    }
+
+    let usuario;
+    try {
+      usuario = await prisma.usuario.findUnique({
+        where: { rut: req.usuario.rut },
+        select: { gerenteGeneral: true, personalOperaciones: true },
+      });
+    } catch (error) {
+      return next(error);
+    }
+
+    const roles = [];
+    if (usuario?.gerenteGeneral) roles.push('GERENTE_GENERAL');
+    if (usuario?.personalOperaciones) roles.push('PERSONAL_OPERACIONES');
+
+    if (!rolesPermitidos.some(rol => roles.includes(rol))) {
       return res.status(403).json({ error: 'No tienes permisos para realizar esta acción' });
     }
     next();
