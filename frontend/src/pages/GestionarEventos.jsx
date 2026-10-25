@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ModalAgregarEvento from '../components/ModalAgregarEvento.jsx';
+import ModalImportarEventos from '../components/ModalImportarEventos.jsx';
 
 export default function GestionarEventos() {
   const [eventos, setEventos] = useState([]);
@@ -11,6 +12,7 @@ export default function GestionarEventos() {
   const [eventoAEliminar, setEventoAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [errorEliminar, setErrorEliminar] = useState('');
+  const [importarAbierto, setImportarAbierto] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -122,6 +124,27 @@ export default function GestionarEventos() {
     }
   };
 
+  // Envía los eventos leídos del CSV al backend y los agrega a la lista
+  const importarEventos = async (eventosAImportar) => {
+    const respuesta = await fetch(`${API_URL}/api/eventos/importar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventos: eventosAImportar })
+    });
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'No se pudieron importar los eventos');
+    }
+
+    setEventos((anteriores) =>
+      [...anteriores, ...datos.creados].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    );
+
+    const rechazados = datos.errores.length > 0 ? ` ${datos.errores.length} fila(s) no se importaron por errores.` : '';
+    mostrarMensaje(`Se importaron ${datos.creados.length} evento(s).${rechazados}`, 5000);
+  };
+
   const abrirAgregar = () => {
     setEventoEditando(null);
     setModalAbierto(true);
@@ -168,7 +191,6 @@ export default function GestionarEventos() {
             padding: '10px 20px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
-            <span style={{ fontSize: '18px', marginRight: '10px' }}>🔍</span>
             
             <input 
               type="text" 
@@ -185,7 +207,6 @@ export default function GestionarEventos() {
                 fontSize: '16px'
               }} 
             />
-            <span style={{ fontSize: '20px', marginLeft: '10px', cursor: 'pointer' }}>⚲</span>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
@@ -196,12 +217,12 @@ export default function GestionarEventos() {
             }}>
               Agregar evento
             </button>
-            <button style={{ 
+            <button onClick={() => setImportarAbierto(true)} style={{ 
               backgroundColor: '#8a5b96', color: 'white', border: 'none', 
               padding: '12px 30px', borderRadius: '25px', fontWeight: 'bold',
               cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }}>
-              Importar evento
+              Importar eventos
             </button>
           </div>
         </div>
@@ -211,7 +232,7 @@ export default function GestionarEventos() {
             backgroundColor: '#e6f4ea', color: '#1e6b34', padding: '10px 20px',
             borderRadius: '15px', marginBottom: '15px', fontWeight: 'bold', textAlign: 'center'
           }}>
-            ✅ {mensajeExito}
+            {mensajeExito}
           </div>
         )}
 
@@ -243,17 +264,17 @@ export default function GestionarEventos() {
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
                   {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'}
                 </span>
-                <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     title="Editar evento"
                     onClick={(e) => { e.stopPropagation(); abrirEditar(evento); }}
-                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
-                  >📝</button>
+                    style={{ backgroundColor: 'white', color: '#523354', border: '1px solid #8a5b96', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >Editar</button>
                   <button
                     title="Eliminar evento"
                     onClick={(e) => { e.stopPropagation(); setErrorEliminar(''); setEventoAEliminar(evento); }}
-                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
-                  >🗑️</button>
+                    style={{ backgroundColor: 'white', color: '#c0392b', border: '1px solid #c0392b', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >Eliminar</button>
                 </div>
               </div>
             ))
@@ -298,6 +319,12 @@ export default function GestionarEventos() {
         
       </main>
 
+      <ModalImportarEventos
+        isOpen={importarAbierto}
+        onClose={() => setImportarAbierto(false)}
+        onImportar={importarEventos}
+      />
+
       <ModalAgregarEvento
         isOpen={modalAbierto}
         eventoInicial={eventoEditando}
@@ -322,7 +349,7 @@ export default function GestionarEventos() {
               padding: '25px 30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', boxSizing: 'border-box'
             }}
           >
-            <h2 style={{ margin: '0 0 10px 0', color: '#523354', fontSize: '22px' }}>🗑️ Eliminar evento</h2>
+            <h2 style={{ margin: '0 0 10px 0', color: '#523354', fontSize: '22px' }}>Eliminar evento</h2>
             <p style={{ margin: '0 0 15px 0', fontSize: '15px', lineHeight: 1.5 }}>
               ¿Seguro que quieres eliminar <strong>"{eventoAEliminar.descripcion}"</strong>? Esta acción no se puede deshacer.
             </p>
