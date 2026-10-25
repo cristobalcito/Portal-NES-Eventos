@@ -16,6 +16,8 @@ var personalRouter = require('./rutas/personal');
 var personalExternoRouter = require('./rutas/personalExternoRutas');
 var catalogoRouter = require('./rutas/catalogoRutas');
 var usuariosRouter = require('./rutas/usuarioRutas');
+var mantencionesRouter = require('./rutas/mantenciones');
+var equiposArrendadosRouter = require('./rutas/equiposArrendados');
 
 
 var app = express();
@@ -37,6 +39,8 @@ app.use('/api/personal', personalRouter);
 app.use('/api/personal-externo', personalExternoRouter);
 app.use('/api/catalogo', catalogoRouter);
 app.use('/api/usuarios', usuariosRouter);
+app.use('/api/mantenciones', mantencionesRouter);
+app.use('/api/equipos-arrendados', equiposArrendadosRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));

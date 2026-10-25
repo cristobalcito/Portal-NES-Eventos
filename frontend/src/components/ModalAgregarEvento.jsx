@@ -205,14 +205,14 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
           borderBottom: '2px solid #8a5b96', paddingBottom: '10px', marginBottom: '20px'
         }}>
           <h2 style={{ margin: 0, color: '#523354', fontSize: '22px' }}>
-            {esEdicion ? '✏️ Editar evento' : '📅 Agregar evento'}
+            {esEdicion ? 'Editar evento' : 'Agregar evento'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', color: '#888' }}
+            style={{ background: 'none', border: 'none', fontSize: '26px', lineHeight: 1, cursor: 'pointer', color: '#888' }}
           >
-            ✖
+            ×
           </button>
         </div>
 

@@ -5,6 +5,8 @@ import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
 import GestionUsuarios from './pages/GestionarUsuarioPage.jsx';
+import MantencionesPagina from './pages/MantencionesPagina.jsx';
+import EquiposArrendadosPagina from './pages/EquiposArrendadosPagina.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
@@ -111,6 +113,10 @@ function App() {
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
+            case '/mantenciones':
+                return <MantencionesPagina {...propsDeNavegacion} />;
+            case '/arrendados':
+                return <EquiposArrendadosPagina {...propsDeNavegacion} />;
             case '/usuarios':
                 if (rolDetectado !== 'GERENTE_GENERAL') {
                     return (
