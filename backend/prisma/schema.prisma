@@ -108,6 +108,7 @@ model PlanEspecifico {
   planBaseId  Int?
   planBase    PlanBase? @relation(fields: [planBaseId], references: [idPL])
   horario     Horario?
+  equiposArrendados EquipoArrendado[]
 }
 
 model Horario {
@@ -150,5 +151,62 @@ model Inventario {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  mantenciones Mantencion[]
+
   @@map("inventario")
+}
+
+// Mantención de equipos (RU-2 y RU-3)
+
+model Mantencion {
+  id                   Int        @id @default(autoincrement())
+  inventarioId         Int
+  inventario           Inventario @relation(fields: [inventarioId], references: [id])
+  cantidad             Int        @default(1)
+  falla                String
+  taller               String?
+  fechaEnvio           DateTime
+  fechaRetornoEstimada DateTime
+  fechaRetornoReal     DateTime?
+  costoReparacion      Float
+  aprobadoPor          String
+  estado               String     @default("en mantención")
+  finalizadoPor        String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@map("mantencion")
+}
+
+// Equipamiento arrendado a terceros (RU-4)
+
+model Proveedor {
+  rut               String            @id
+  nombre            String
+  contacto          String
+  equiposArrendados EquipoArrendado[]
+
+  @@map("proveedor")
+}
+
+model EquipoArrendado {
+  id                  Int            @id @default(autoincrement())
+  nombreEquipo        String
+  codigoEquipo        String
+  cantidad            Int
+  costo               Float
+  fechaRetiro         DateTime
+  fechaDevolucion     DateTime
+  fechaDevolucionReal DateTime?
+  receptorBodega      String
+  garantiaArchivo     String
+  garantiaNombre      String
+  estado              String         @default("arrendado")
+  proveedorRut        String
+  proveedor           Proveedor      @relation(fields: [proveedorRut], references: [rut])
+  eventoId            Int
+  evento              PlanEspecifico @relation(fields: [eventoId], references: [idPE])
+  createdAt           DateTime       @default(now())
+
+  @@map("equipo_arrendado")
 }
