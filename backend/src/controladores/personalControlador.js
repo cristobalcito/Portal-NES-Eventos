@@ -51,11 +51,12 @@ const crearPersonal = async (req, res) => {
       const personal = await tx.personalEventual.create({
         data: {
           rut: usuario.rut,
-          rol: rol || 'Garzón',
+          rol: rol || 'No definido',
           disponibilidad: estado || 'Disponible',
           fono: telefono || '',
           experiencia: 'Sin registrar',
           evaluacionDesempeno: 'Buena',
+          evaluacionDesempeno: 'No calificada',
           datosDePago: 'Pendiente',
           tallaDeRopa: 'M',
           notaFinal: 5.0
