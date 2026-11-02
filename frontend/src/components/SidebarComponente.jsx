@@ -10,6 +10,7 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar, usuar
     { nombre: 'Gestionar eventos', ruta: '/eventos' },
     { nombre: 'Personal', ruta: '/personal' },
     { nombre: 'Inventario', ruta: '/inventario' },
+    { nombre: 'Estado de equipos', ruta: '/estado-equipos' },
     { nombre: 'Mantenciones', ruta: '/mantenciones' },
     { nombre: 'Equipos arrendados', ruta: '/arrendados' },
     { nombre: 'Catálogo', ruta: '/catalogo' },
