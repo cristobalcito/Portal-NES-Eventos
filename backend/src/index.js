@@ -18,6 +18,7 @@ var catalogoRouter = require('./rutas/catalogoRutas');
 var usuariosRouter = require('./rutas/usuarioRutas');
 var mantencionesRouter = require('./rutas/mantenciones');
 var equiposArrendadosRouter = require('./rutas/equiposArrendados');
+var estadoEquiposRouter = require('./rutas/estadoEquipos');
 
 
 var app = express();
@@ -41,6 +42,7 @@ app.use('/api/catalogo', catalogoRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/mantenciones', mantencionesRouter);
 app.use('/api/equipos-arrendados', equiposArrendadosRouter);
+app.use('/api/estado-equipos', estadoEquiposRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));
