@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, alGuardar }) {
+export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, alGuardar, planActual }) {
   const [costoBase, setCostoBase] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [errorLocal, setErrorLocal] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  // Precargar los datos del plan actual cuando cambie o se abra el modal
+  useEffect(() => {
+    if (planActual) {
+      setCostoBase(planActual.costoBase || '');
+      setDescripcion(planActual.descripcion || '');
+    } else {
+      setCostoBase('');
+      setDescripcion('');
+    }
+  }, [planActual, abierto]);
 
   if (!abierto) return null;
 
@@ -24,13 +35,11 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
         descripcion: descripcion.trim()
       });
 
-      setCostoBase('');
-      setDescripcion('');
       setGuardando(false);
       alCerrar();
     } catch (err) {
       console.error('Error al guardar desde el modal:', err);
-      setErrorLocal('Ocurrió un error al guardar el plan base.');
+      setErrorLocal('Ocurrió un error al guardar las modificaciones.');
       setGuardando(false);
     }
   };
@@ -57,7 +66,7 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
       }}>
         <h2 style={{ marginTop: 0, color: '#1f2937', marginBottom: '1.5rem' }}>
-          Agregar Nuevo Plan Base
+          Editar Plan Base #{planActual?.idPL || ''}
         </h2>
 
         {errorLocal && (
@@ -97,7 +106,7 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
 
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#374151' }}>
-              Descripción:
+              Descripción (Nombre y Detalles):
             </label>
             <textarea
               rows="4"
@@ -144,7 +153,7 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
                 cursor: guardando ? 'not-allowed' : 'pointer'
               }}
             >
-              {guardando ? 'Guardando...' : 'Guardar Plan'}
+              {guardando ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>
         </form>
