@@ -1,76 +1,51 @@
-const API_URL = '/api/planes-especificos';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-/**
- * Obtiene la lista de planes específicos creados.
- */
+// Función para obtener headers con autenticación/rol (RBAC)
+const obtenerHeaders = () => {
+  const token = localStorage.getItem('token');
+  const rol = localStorage.getItem('rol') || 'GERENTE_GENERAL'; // Rol por defecto de prueba
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : '',
+    'x-user-role': rol
+  };
+};
+
+// 1. Obtener todos los planes específicos / eventos del horario compartido
 export const obtenerPlanesEspecificosServicio = async () => {
-  const respuesta = await fetch(API_URL);
-  if (!respuesta.ok) {
-    const errorData = await respuesta.json().catch(() => ({}));
+  const res = await fetch(`${API_URL}/api/planes-especificos`, {
+    headers: obtenerHeaders()
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.mensaje || 'Error al obtener los planes específicos.');
   }
-  return await respuesta.json();
+  return await res.json();
 };
 
-/**
- * Envía la petición para crear un nuevo plan específico.
- * @param {Object} datosPlan Datos del plan (incluye costoTotal, fecha, horario, equipamientos, etc.)
- */
-export const crearPlanEspecificoServicio = async (datosPlan) => {
-  const respuesta = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(datosPlan)
-  });
-
-  const data = await respuesta.json();
-
-  if (!respuesta.ok) {
-    throw new Error(data.mensaje || 'Error al crear el plan específico.');
-  }
-
-  return data;
-};
-
-/**
- * Actualiza un plan específico existente.
- * @param {number|string} idPE ID del plan específico
- * @param {Object} datosPlan Datos a modificar
- */
-export const modificarPlanEspecificoServicio = async (idPE, datosPlan) => {
-  const respuesta = await fetch(`${API_URL}/${idPE}`, {
+// 2. Modificar un plan específico (Aplica recargo del 5% entre 7 y 13 días)
+export const modificarPlanEspecificoServicio = async (idPE, datos) => {
+  const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(datosPlan)
+    headers: obtenerHeaders(),
+    body: JSON.stringify(datos)
   });
-
-  const data = await respuesta.json();
-
-  if (!respuesta.ok) {
-    throw new Error(data.mensaje || 'Error al modificar el plan específico.');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.mensaje || 'Error al modificar el plan específico.');
   }
-
-  return data;
+  return await res.json();
 };
 
-/**
- * Elimina o cancela un plan específico.
- * @param {number|string} idPE ID del plan específico
- */
+// 3. Eliminar / Cancelar un plan específico (Aplica reembolso del 50% si es < 7 días)
 export const eliminarPlanEspecificoServicio = async (idPE) => {
-  const respuesta = await fetch(`${API_URL}/${idPE}`, {
-    method: 'DELETE'
+  const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}`, {
+    method: 'DELETE',
+    headers: obtenerHeaders()
   });
-
-  const data = await respuesta.json();
-
-  if (!respuesta.ok) {
-    throw new Error(data.mensaje || 'Error al eliminar el plan específico.');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.mensaje || 'Error al cancelar el plan específico.');
   }
-
-  return data;
+  return await res.json();
 };

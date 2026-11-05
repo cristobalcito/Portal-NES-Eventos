@@ -24,13 +24,17 @@ const dosDigitos = (n) => String(n).padStart(2, '0');
 
 // Pasa una fecha guardada a formato YYYY-MM-DD (hora local) para el input date
 const aFechaInput = (valor) => {
+  if (!valor) return '';
   const d = new Date(valor);
+  if (isNaN(d.getTime())) return '';
   return `${d.getFullYear()}-${dosDigitos(d.getMonth() + 1)}-${dosDigitos(d.getDate())}`;
 };
 
 // Pasa una fecha guardada a formato HH:MM (hora local) para el input time
 const aHoraInput = (valor) => {
+  if (!valor) return '';
   const d = new Date(valor);
+  if (isNaN(d.getTime())) return '';
   return `${dosDigitos(d.getHours())}:${dosDigitos(d.getMinutes())}`;
 };
 
@@ -78,35 +82,29 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   // Cargar lista de Planes Base (Catálogo) e Inventario al abrir
   useEffect(() => {
     if (isOpen) {
-      // 1. Cargar catálogo / planes base con fallback de rutas y extracción flexible de datos
-      fetch(`${API_URL}/api/catalogo`)
-        .then((res) => res.json())
+      // 1. Cargar desde la ruta exactita del backend: /api/catalogo/planes-base
+      fetch(`${API_URL}/api/catalogo/planes-base`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP error status: ${res.status}`);
+          return res.json();
+        })
         .then((data) => {
           const lista = Array.isArray(data) 
             ? data 
-            : (data.datos || data.planes || data.catalogo || []);
+            : (data.datos || data.planes || data.catalogo || data.data || []);
           setPlanesBase(lista);
         })
-        .catch((err) => {
-          console.error("Error al cargar desde /api/catalogo, intentando /api/planes-base...", err);
-          fetch(`${API_URL}/api/planes-base`)
-            .then((res) => res.json())
-            .then((data) => {
-              const lista = Array.isArray(data) ? data : (data.datos || []);
-              setPlanesBase(lista);
-            })
-            .catch((e) => console.error("Error final al cargar planes base:", e));
-        });
+        .catch((err) => console.error("Error al cargar planes base:", err));
 
       // 2. Cargar Inventario
       fetch(`${API_URL}/api/inventario`)
         .then((res) => res.json())
-        .then((data) => setListaInventario(Array.isArray(data) ? data : (data.datos || [])))
+        .then((data) => setListaInventario(Array.isArray(data) ? data : (data.datos || data.data || [])))
         .catch((err) => console.error("Error al cargar inventario:", err));
     }
   }, [isOpen, API_URL]);
 
-  // Reiniciar (o precargar en modo edición) el formulario cada vez que se abre el modal
+  // Reiniciar (o precargar en modo edición) el formulario al abrir
   useEffect(() => {
     if (isOpen) {
       if (eventoInicial) {
@@ -127,7 +125,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
 
   if (!isOpen) return null;
 
-  // Al seleccionar un Plan Base: autocompletar costo y descripción, y fijar el rango del ±25%
+  // Al seleccionar un Plan Base: autocompletar costo, descripción y fijar rango ±25%
   const manejarSeleccionPlanBase = (e) => {
     const selectedId = e.target.value;
 
@@ -213,7 +211,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Validación en tiempo real para costoTotal (Solo enteros positivos)
+    // Validación de números enteros en costoTotal
     if (name === 'costoTotal') {
       if (value !== '' && (!/^\d+$/.test(value) || parseInt(value, 10) < 0)) {
         return;
@@ -277,7 +275,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
       return 'El costo total debe ser un número entero positivo (sin decimales ni negativos).';
     }
 
-    // Validación de variación máxima (25%) respecto al Plan Base
+    // Validación del ±25% respecto al Plan Base
     if (rangoPrecioPermitido) {
       if (costo < rangoPrecioPermitido.min || costo > rangoPrecioPermitido.max) {
         return `El precio ingresado excede el límite del ${rangoPrecioPermitido.porcentaje}% de variación sobre el Plan Base ($${rangoPrecioPermitido.base.toLocaleString('es-CL')} CLP). Rango permitido: $${rangoPrecioPermitido.min.toLocaleString('es-CL')} - $${rangoPrecioPermitido.max.toLocaleString('es-CL')} CLP.`;
@@ -369,7 +367,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           
-          {/* Selector Opcional de Plan Base */}
+          {/* Selector de Plan Base */}
           {!esEdicion && (
             <div style={{ backgroundColor: '#f3e8f4', padding: '10px 14px', borderRadius: '10px' }}>
               <label style={{ ...labelStyle, color: '#523354' }}>Vincular a un Plan Base (Opcional):</label>
@@ -380,7 +378,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
                 style={{ ...inputStyle, borderColor: '#8a5b96' }}
               >
                 <option value="">-- Plan Personalizado (Sin Base) --</option>
-                {planesBase.map((pb) => {
+                {Array.isArray(planesBase) && planesBase.map((pb) => {
                   const id = pb.idPL || pb.id || pb.idPlan;
                   const nombre = pb.nombre || pb.titulo || pb.nombrePlan || `Plan Base #${id}`;
                   const precio = Number(pb.costoBase || pb.precio || pb.costo || 0);
