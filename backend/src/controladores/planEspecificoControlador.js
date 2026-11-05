@@ -1,26 +1,19 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// ==============================================================================
-// CONFIGURACIONES GLOBALES Y ROLES
-// ==============================================================================
-const CONFIG_PLAN_ESPECIFICO = {
-  DIAS_MINIMOS_CREACION: 14,          // 2 semanas mínimo para crear
-  DIAS_MINIMOS_SIN_RECARGO: 14,      // Más de 14 días: sin costo extra por edición
-  DIAS_LIMITE_CON_RECARGO: 7,         // Entre 7 y 13 días: aplica recargo por edición
-  PORCENTAJE_RECARGO_EDICION: 0.05,  // 5% de recargo por modificar entre 1 y 2 semanas
-  PORCENTAJE_REEMBOLSO_CANCELAR: 0.50// 50% de reembolso si se cancela a menos de 1 semana
-};
-
-const ROLES_AUTORIZADOS = ['GERENTE_GENERAL', 'ENCARGADO_COMERCIAL'];
+// Importación centralizada de constantes de negocio y roles
+const {
+  CONFIG_CATALOGO,
+  CONFIG_PLAN_ESPECIFICO,
+  ROLES_AUTORIZADOS_PLAN_ESPECIFICO
+} = require('../constants/catalogoConstantes.js');
 
 /**
- * Función auxiliar para verificar si el usuario tiene rol permitido.
- * Revisa `req.usuario.rol` (vía JWT) o un header de respaldo `x-user-role`.
+ * Función auxiliar para verificar si el usuario tiene rol permitido (RBAC).
  */
 const verificarRolAutorizado = (req) => {
   const rolUsuario = req.usuario?.rol || req.headers['x-user-role'];
-  return ROLES_AUTORIZADOS.includes(rolUsuario);
+  return ROLES_AUTORIZADOS_PLAN_ESPECIFICO.includes(rolUsuario);
 };
 
 /**
@@ -40,7 +33,7 @@ const obtenerDiferenciaDias = (fechaObjetivo) => {
 // ==============================================================================
 const crearPlanEspecifico = async (req, res) => {
   try {
-    // A. Control de acceso por rol
+    // A. Control de acceso por rol (RBAC)
     if (!verificarRolAutorizado(req)) {
       return res.status(403).json({
         exito: false,
@@ -59,7 +52,7 @@ const crearPlanEspecifico = async (req, res) => {
       horaSalida,
       horaLlegada,
       horaVuelta,
-      equipamientos // Arreglo de ítems: [{ productoId: 1, cantidad: 2 }, ...]
+      equipamientos // Arreglo: [{ productoId: 1, cantidad: 2 }, ...]
     } = req.body;
 
     // B. Validación de costo (Entero positivo, no decimales, no negativo)
@@ -71,7 +64,29 @@ const crearPlanEspecifico = async (req, res) => {
       });
     }
 
-    // C. Validación de fecha (Mínimo 14 días de antelación)
+    // C. Validación de límite de variación del 25% respecto al Plan Base (si aplica)
+    if (planBaseId) {
+      const planBaseOriginal = await prisma.planBase.findUnique({
+        where: { idPL: parseInt(planBaseId, 10) }
+      });
+
+      if (planBaseOriginal && planBaseOriginal.costoBase) {
+        const costoBase = Number(planBaseOriginal.costoBase);
+        const limiteVariacion = CONFIG_CATALOGO.PORCENTAJE_MAXIMO_VARIACION_PRECIO || 0.25;
+
+        const precioMinimo = Math.round(costoBase * (1 - limiteVariacion));
+        const precioMaximo = Math.round(costoBase * (1 + limiteVariacion));
+
+        if (costoNumerico < precioMinimo || costoNumerico > precioMaximo) {
+          return res.status(400).json({
+            exito: false,
+            mensaje: `El precio no puede variar más de un ${(limiteVariacion * 100)}% respecto al plan base ($${costoBase.toLocaleString('es-CL')} CLP). Rango permitido: $${precioMinimo.toLocaleString('es-CL')} - $${precioMaximo.toLocaleString('es-CL')} CLP.`
+          });
+        }
+      }
+    }
+
+    // D. Validación de fecha (Mínimo 14 días de antelación)
     const diasAntelacion = obtenerDiferenciaDias(fecha);
     if (diasAntelacion < CONFIG_PLAN_ESPECIFICO.DIAS_MINIMOS_CREACION) {
       return res.status(400).json({
@@ -80,7 +95,7 @@ const crearPlanEspecifico = async (req, res) => {
       });
     }
 
-    // D. Verificación de stock disponible en inventario
+    // E. Verificación de stock disponible en inventario
     let tieneStockSuficiente = true;
     const itemsAProcesar = [];
 
@@ -106,9 +121,9 @@ const crearPlanEspecifico = async (req, res) => {
 
     const estadoPlan = tieneStockSuficiente ? 'CONFIRMADO' : 'PENDIENTE';
 
-    // E. Transacción en Base de Datos
+    // F. Transacción en Base de Datos
     const resultado = await prisma.$transaction(async (tx) => {
-      // 1. Crear el Plan Especifico
+      // 1. Crear el Plan Específico
       const nuevoPlan = await tx.planEspecifico.create({
         data: {
           costoTotal: costoNumerico,
@@ -134,7 +149,7 @@ const crearPlanEspecifico = async (req, res) => {
         });
       }
 
-      // 3. Si hubo stock suficiente, actualizar inventario (decrementar disponible, incrementar ocupado)
+      // 3. Si hubo stock suficiente, actualizar inventario
       if (tieneStockSuficiente && itemsAProcesar.length > 0) {
         for (const item of itemsAProcesar) {
           await tx.inventario.update({
@@ -174,7 +189,7 @@ const crearPlanEspecifico = async (req, res) => {
 // ==============================================================================
 const modificarPlanEspecifico = async (req, res) => {
   try {
-    // A. Control de acceso por rol
+    // A. Control de acceso por rol (RBAC)
     if (!verificarRolAutorizado(req)) {
       return res.status(403).json({
         exito: false,
@@ -199,7 +214,7 @@ const modificarPlanEspecifico = async (req, res) => {
 
     const diasAntelacion = obtenerDiferenciaDias(planExistente.fecha);
 
-    // Regla 1: No se puede modificar a menos de 1 semana (7 días)
+    // Regla 1: No se permite modificar a menos de 1 semana (7 días)
     if (diasAntelacion < CONFIG_PLAN_ESPECIFICO.DIAS_LIMITE_CON_RECARGO) {
       return res.status(400).json({
         exito: false,
@@ -214,7 +229,7 @@ const modificarPlanEspecifico = async (req, res) => {
     if (diasAntelacion >= CONFIG_PLAN_ESPECIFICO.DIAS_LIMITE_CON_RECARGO && 
         diasAntelacion < CONFIG_PLAN_ESPECIFICO.DIAS_MINIMOS_SIN_RECARGO) {
       recargoAplicado = nuevoCosto * CONFIG_PLAN_ESPECIFICO.PORCENTAJE_RECARGO_EDICION;
-      nuevoCosto = Math.round(nuevoCosto + recargoAplicado); // Redondeo a número entero sin decimales
+      nuevoCosto = Math.round(nuevoCosto + recargoAplicado);
     }
 
     // Validar entero positivo
@@ -259,7 +274,7 @@ const modificarPlanEspecifico = async (req, res) => {
 // ==============================================================================
 const eliminarPlanEspecifico = async (req, res) => {
   try {
-    // A. Control de acceso por rol
+    // A. Control de acceso por rol (RBAC)
     if (!verificarRolAutorizado(req)) {
       return res.status(403).json({
         exito: false,
@@ -283,13 +298,12 @@ const eliminarPlanEspecifico = async (req, res) => {
 
     const diasAntelacion = obtenerDiferenciaDias(planExistente.fecha);
 
-    // Evaluar si la cancelación ocurre a menos de 1 semana
+    // Cancelar a menos de 1 semana devuelve solo el 50%
     const menosDeUnaSemana = diasAntelacion < CONFIG_PLAN_ESPECIFICO.DIAS_LIMITE_CON_RECARGO;
     const montoReembolso = menosDeUnaSemana
       ? Math.round(planExistente.costoTotal * CONFIG_PLAN_ESPECIFICO.PORCENTAJE_REEMBOLSO_CANCELAR)
       : planExistente.costoTotal;
 
-    // Ejecutar eliminación y limpieza de horarios dentro de una transacción
     await prisma.$transaction(async (tx) => {
       await tx.horario.deleteMany({
         where: { planEspecificoId: idNumerico }
@@ -321,6 +335,5 @@ const eliminarPlanEspecifico = async (req, res) => {
 module.exports = {
   crearPlanEspecifico,
   modificarPlanEspecifico,
-  eliminarPlanEspecifico,
-  CONFIG_PLAN_ESPECIFICO
+  eliminarPlanEspecifico
 };
