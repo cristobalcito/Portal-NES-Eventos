@@ -48,7 +48,6 @@ const estadoDesdeEvento = (evento) => ({
   horaVuelta: evento.horario ? aHoraInput(evento.horario.horaVuelta) : ''
 });
 
-// Si recibe "eventoInicial" funciona en modo edición; si no, en modo agregar
 export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoInicial = null }) {
   const esEdicion = Boolean(eventoInicial);
   const [formData, setFormData] = useState(estadoInicial);
@@ -61,7 +60,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   const VARIACION_MAXIMA = CONFIG_CATALOGO.PORCENTAJE_MAXIMO_VARIACION_PRECIO || 0.25;
   const DIAS_CREACION_MINIMOS = CONFIG_PLAN_ESPECIFICO.DIAS_MINIMOS_CREACION || 14;
 
-  // Catálogos
+  // Catálogos de Planes Base e Inventario
   const [planesBase, setPlanesBase] = useState([]);
   const [listaInventario, setListaInventario] = useState([]);
   const [equipamientoSeleccionado, setEquipamientoSeleccionado] = useState([]);
@@ -76,14 +75,28 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
     return aFechaInput(hoy);
   };
 
-  // Cargar listas de Planes Base e Inventario al abrir
+  // Cargar lista de Planes Base (Catálogo) e Inventario al abrir
   useEffect(() => {
     if (isOpen) {
-      // 1. Cargar Planes Base
-      fetch(`${API_URL}/api/planes-base`)
+      // 1. Cargar catálogo / planes base con fallback de rutas y extracción flexible de datos
+      fetch(`${API_URL}/api/catalogo`)
         .then((res) => res.json())
-        .then((data) => setPlanesBase(Array.isArray(data) ? data : (data.datos || [])))
-        .catch((err) => console.error("Error al cargar planes base:", err));
+        .then((data) => {
+          const lista = Array.isArray(data) 
+            ? data 
+            : (data.datos || data.planes || data.catalogo || []);
+          setPlanesBase(lista);
+        })
+        .catch((err) => {
+          console.error("Error al cargar desde /api/catalogo, intentando /api/planes-base...", err);
+          fetch(`${API_URL}/api/planes-base`)
+            .then((res) => res.json())
+            .then((data) => {
+              const lista = Array.isArray(data) ? data : (data.datos || []);
+              setPlanesBase(lista);
+            })
+            .catch((e) => console.error("Error final al cargar planes base:", e));
+        });
 
       // 2. Cargar Inventario
       fetch(`${API_URL}/api/inventario`)
@@ -114,7 +127,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
 
   if (!isOpen) return null;
 
-  // Selección de Plan Base y cálculo de la variación del 25%
+  // Al seleccionar un Plan Base: autocompletar costo y descripción, y fijar el rango del ±25%
   const manejarSeleccionPlanBase = (e) => {
     const selectedId = e.target.value;
 
@@ -124,10 +137,12 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
       return;
     }
 
-    const planEncontrado = planesBase.find((pb) => String(pb.idPL || pb.id) === String(selectedId));
+    const planEncontrado = planesBase.find(
+      (pb) => String(pb.idPL || pb.id || pb.idPlan) === String(selectedId)
+    );
 
     if (planEncontrado) {
-      const costoBase = Math.round(planEncontrado.costoBase || 0);
+      const costoBase = Math.round(Number(planEncontrado.costoBase || planEncontrado.precio || planEncontrado.costo || 0));
       const min = Math.round(costoBase * (1 - VARIACION_MAXIMA));
       const max = Math.round(costoBase * (1 + VARIACION_MAXIMA));
 
@@ -138,11 +153,13 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
         porcentaje: VARIACION_MAXIMA * 100
       });
 
+      const desc = planEncontrado.descripcion || planEncontrado.detalles || '';
+
       setFormData((prev) => ({
         ...prev,
         planBaseId: selectedId,
         costoTotal: costoBase.toString(),
-        descripcion: planEncontrado.descripcion ? planEncontrado.descripcion.substring(0, MAX_CARACTERES) : prev.descripcion
+        descripcion: desc ? desc.substring(0, MAX_CARACTERES) : prev.descripcion
       }));
     }
   };
@@ -260,7 +277,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
       return 'El costo total debe ser un número entero positivo (sin decimales ni negativos).';
     }
 
-    // Validación de variación del 25% respecto al Plan Base
+    // Validación de variación máxima (25%) respecto al Plan Base
     if (rangoPrecioPermitido) {
       if (costo < rangoPrecioPermitido.min || costo > rangoPrecioPermitido.max) {
         return `El precio ingresado excede el límite del ${rangoPrecioPermitido.porcentaje}% de variación sobre el Plan Base ($${rangoPrecioPermitido.base.toLocaleString('es-CL')} CLP). Rango permitido: $${rangoPrecioPermitido.min.toLocaleString('es-CL')} - $${rangoPrecioPermitido.max.toLocaleString('es-CL')} CLP.`;
@@ -363,12 +380,18 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
                 style={{ ...inputStyle, borderColor: '#8a5b96' }}
               >
                 <option value="">-- Plan Personalizado (Sin Base) --</option>
-                {planesBase.map((pb) => (
-                  <option key={pb.idPL || pb.id} value={pb.idPL || pb.id}>
-                    {pb.nombre || `Plan Base #${pb.idPL || pb.id}`} - ${Number(pb.costoBase || 0).toLocaleString('es-CL')} CLP
-                  </option>
-                ))}
+                {planesBase.map((pb) => {
+                  const id = pb.idPL || pb.id || pb.idPlan;
+                  const nombre = pb.nombre || pb.titulo || pb.nombrePlan || `Plan Base #${id}`;
+                  const precio = Number(pb.costoBase || pb.precio || pb.costo || 0);
+                  return (
+                    <option key={id} value={id}>
+                      {nombre} - ${precio.toLocaleString('es-CL')} CLP
+                    </option>
+                  );
+                })}
               </select>
+
               {rangoPrecioPermitido && (
                 <span style={{ fontSize: '11px', color: '#523354', display: 'block', marginTop: '4px' }}>
                   💡 Variación máxima del {rangoPrecioPermitido.porcentaje}%: entre ${rangoPrecioPermitido.min.toLocaleString('es-CL')} y ${rangoPrecioPermitido.max.toLocaleString('es-CL')} CLP.
