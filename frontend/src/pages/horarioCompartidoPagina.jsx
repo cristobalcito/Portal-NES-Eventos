@@ -4,7 +4,7 @@ import {
   modificarPlanEspecificoServicio,
   eliminarPlanEspecificoServicio
 } from '../servicios/planEspecificoServicio.js';
-import { CONFIG_CATALOGO } from '../constants/catalogoConstantes.js';
+import { CONFIG_CATALOGO } from '../utilidades/catalogoConstantes.js';
 
 export default function HorarioCompartidoPagina() {
   const [planesEspecificos, setPlanesEspecificos] = useState([]);
