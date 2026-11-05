@@ -2,13 +2,17 @@ const express = require('express');
 const router = express.Router();
 const {
   crearPlanEspecifico,
-  modificarPlanEspecifico
+  modificarPlanEspecifico,
+  eliminarPlanEspecifico
 } = require('../controladores/planEspecificoControlador');
 
-// POST /api/planes-especificos -> Crear un plan específico
+// POST /api/planes-especificos -> Crear
 router.post('/', crearPlanEspecifico);
 
-// PUT /api/planes-especificos/:idPE -> Modificar un plan específico (aplica reglas de 1-2 semanas)
+// PUT /api/planes-especificos/:idPE -> Modificar
 router.put('/:idPE', modificarPlanEspecifico);
+
+// DELETE /api/planes-especificos/:idPE -> Eliminar/Cancelar
+router.delete('/:idPE', eliminarPlanEspecifico);
 
 module.exports = router;
