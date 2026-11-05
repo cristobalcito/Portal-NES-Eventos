@@ -11,6 +11,7 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar, usuar
     { nombre: 'Personal', ruta: '/personal' },
     { nombre: 'Inventario', ruta: '/inventario' },
     { nombre: 'Catálogo', ruta: '/catalogo' },
+    { nombre: 'Horario compartido', ruta: '/horario-compartido' }
   ];
 
   // Si el usuario logueado es GERENTE_GENERAL, agregamos la opción exclusiva
