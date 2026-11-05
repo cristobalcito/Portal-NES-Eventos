@@ -9,7 +9,6 @@ export default function CatalogoPagina() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   
-  // Modificado: Ahora controlamos la edición de un plan específico
   const [modalAbierto, setModalAbierto] = useState(false);
   const [planAEditar, setPlanAEditar] = useState(null);
 
@@ -29,10 +28,10 @@ export default function CatalogoPagina() {
     console.error('Error al leer sesión:', e);
   }
 
-  useEffect(() => {
+  const cargarPlanes = () => {
+    setCargando(true);
     obtenerPlanesBaseServicio()
       .then((respuesta) => {
-        // Soporta respuesta en array directo o con wrapper { datos: [] }
         const lista = respuesta.datos || respuesta;
         setPlanes(Array.isArray(lista) ? lista.slice(0, 3) : []);
         setCargando(false);
@@ -42,6 +41,10 @@ export default function CatalogoPagina() {
         setError('Error al cargar las experiencias del catálogo.');
         setCargando(false);
       });
+  };
+
+  useEffect(() => {
+    cargarPlanes();
   }, []);
 
   const abrirModalEditar = (plan) => {
@@ -52,25 +55,23 @@ export default function CatalogoPagina() {
   const manejarGuardarEdicion = async (datosActualizados) => {
     if (!planAEditar) return;
 
-    try {
-      const idPlan = planAEditar.idPL || planAEditar.id;
-      const respuesta = await modificarPlanBaseServicio(idPlan, datosActualizados);
-      
-      const planModificado = respuesta.datos || respuesta;
+    const idPlan = planAEditar.idPL || planAEditar.id;
+    
+    // Llamada al servicio
+    const respuesta = await modificarPlanBaseServicio(idPlan, datosActualizados);
 
-      // Actualiza la tarjeta correspondiente en el estado local
-      setPlanes((planesPrevios) =>
-        planesPrevios.map((p) =>
-          (p.idPL || p.id) === idPlan ? { ...p, ...planModificado } : p
-        )
-      );
+    // Extraemos el plan modificado real
+    const planModificado = respuesta.datos || respuesta;
 
-      setModalAbierto(false);
-      setPlanAEditar(null);
-    } catch (err) {
-      console.error('Error al guardar las modificaciones:', err);
-      alert('Ocurrió un error al actualizar el plan base.');
-    }
+    // Actualizamos el estado local
+    setPlanes((planesPrevios) =>
+      planesPrevios.map((p) =>
+        (p.idPL || p.id) === idPlan ? { ...p, ...planModificado } : p
+      )
+    );
+
+    setModalAbierto(false);
+    setPlanAEditar(null);
   };
 
   if (cargando) {
