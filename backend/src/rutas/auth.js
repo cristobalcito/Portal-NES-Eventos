@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var bcrypt = require('bcryptjs');
 var jwt = require('jsonwebtoken');
+var { getJwtSecret } = require('../lib/jwt');
 var prisma = require('../lib/prisma'); // O la ruta correspondiente a tu instancia de Prisma
 
 router.post('/login', async function(req, res) {
@@ -23,7 +24,7 @@ router.post('/login', async function(req, res) {
 
     const token = jwt.sign(
       { rut: usuario.rut, email: usuario.email },
-      process.env.JWT_SECRET || 'secret_key_provisoria',
+      getJwtSecret(),
       { expiresIn: '8h' }
     );
 

@@ -195,9 +195,59 @@ const eliminarEvento = async (req, res) => {
     if (error.code === 'P2025') {
       return res.status(404).json({ mensaje: 'El evento no existe.' });
     }
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        mensaje: 'No se puede eliminar: el evento tiene equipos arrendados asociados. Elimínalos primero.'
+      });
+    }
     console.error("Error al eliminar el evento:", error);
     res.status(500).json({ mensaje: "No se pudo eliminar el evento" });
   }
 };
 
-module.exports = { obtenerEventos, crearEvento, actualizarEvento, eliminarEvento };
+// POST /api/eventos/importar -> crea varios eventos a la vez (desde un archivo CSV)
+// Recibe { eventos: [...] }, donde cada evento trae el número de "fila" del archivo.
+// Guarda los eventos válidos y devuelve la lista de filas que tenían errores.
+const importarEventos = async (req, res) => {
+  try {
+    const eventos = req.body.eventos;
+
+    // 1. Revisar que venga una lista con eventos (máximo 200 por archivo)
+    if (!Array.isArray(eventos) || eventos.length === 0) {
+      return res.status(400).json({ mensaje: 'No se recibieron eventos para importar.' });
+    }
+    if (eventos.length > 200) {
+      return res.status(400).json({ mensaje: 'Puedes importar como máximo 200 eventos por archivo.' });
+    }
+
+    const creados = [];
+    const conErrores = [];
+
+    // 2. Validar y guardar cada evento por separado
+    for (const evento of eventos) {
+      const { errores, datos, datosHorario } = validarDatosEvento(evento);
+
+      if (errores.length > 0) {
+        conErrores.push({ fila: evento.fila, mensaje: errores.join(' ') });
+        continue;
+      }
+
+      const nuevoEvento = await prisma.planEspecifico.create({
+        data: {
+          ...datos,
+          ...(datosHorario && { horario: { create: datosHorario } })
+        },
+        include: { horario: true }
+      });
+      creados.push(formatearEvento(nuevoEvento));
+    }
+
+    // 3. Responder cuántos se crearon y cuáles fallaron
+    res.status(201).json({ creados, errores: conErrores });
+  } catch (error) {
+    console.error("Error al importar eventos:", error);
+    res.status(500).json({ mensaje: "No se pudieron importar los eventos" });
+  }
+};
+
+module.exports = { obtenerEventos, crearEvento, actualizarEvento, eliminarEvento, importarEventos };

@@ -115,6 +115,12 @@ function App() {
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
+            case '/mantenciones':
+                return <MantencionesPagina {...propsDeNavegacion} />;
+            case '/arrendados':
+                return <EquiposArrendadosPagina {...propsDeNavegacion} />;
+            case '/estado-equipos':
+                return <EstadoEquiposPagina {...propsDeNavegacion} />;
             case '/usuarios':
                 if (rolDetectado !== 'GERENTE_GENERAL') {
                     return (

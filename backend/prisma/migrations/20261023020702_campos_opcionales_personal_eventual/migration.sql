@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "PersonalEventual" ALTER COLUMN "rol" DROP NOT NULL,
+ALTER COLUMN "disponibilidad" DROP NOT NULL,
+ALTER COLUMN "fono" DROP NOT NULL,
+ALTER COLUMN "experiencia" DROP NOT NULL,
+ALTER COLUMN "evaluacionDesempeno" DROP NOT NULL,
+ALTER COLUMN "datosDePago" DROP NOT NULL,
+ALTER COLUMN "tallaDeRopa" DROP NOT NULL,
+ALTER COLUMN "notaFinal" DROP NOT NULL;

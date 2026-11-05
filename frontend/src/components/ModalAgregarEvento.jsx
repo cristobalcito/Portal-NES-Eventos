@@ -359,9 +359,9 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
           <button
             type="button"
             onClick={onClose}
-            style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', fontWeight: 'bold', color: '#888' }}
+            style={{ background: 'none', border: 'none', fontSize: '26px', lineHeight: 1, cursor: 'pointer', color: '#888' }}
           >
-            ✖
+            ×
           </button>
         </div>
 
