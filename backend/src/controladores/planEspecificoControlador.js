@@ -3,10 +3,9 @@ const prisma = new PrismaClient();
 
 // Importación centralizada de constantes de negocio y roles
 const {
-  CONFIG_CATALOGO,
   CONFIG_PLAN_ESPECIFICO,
   ROLES_AUTORIZADOS_PLAN_ESPECIFICO
-} = require('../constants/catalogoConstantes.js');
+} = require('../utilidades/planEspecificoConstantes');
 
 /**
  * Función auxiliar para verificar si el usuario tiene rol permitido (RBAC).
