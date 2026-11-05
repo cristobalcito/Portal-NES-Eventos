@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import TarjetaPlanComponente from '../components/tarjetaPlanComponente.jsx';
-import BotonComponente from '../components/BotonComponente.jsx';
 import VentanaEmergenteCatalogoComponente from '../components/ventanaEmergenteCatalogoComponente.jsx';
 
-import { obtenerPlanesBaseServicio } from '../servicios/catalogoServicio.js';
-import { crearPlanBaseServicio } from '../servicios/crearPlanBaseServicio.js';
+import { obtenerPlanesBaseServicio, modificarPlanBaseServicio } from '../servicios/catalogoServicio.js';
 
 export default function CatalogoPagina() {
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Modificado: Ahora controlamos la edición de un plan específico
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [planAEditar, setPlanAEditar] = useState(null);
 
   // 1. Extraer los datos del usuario desde localStorage
   let esGerenteGeneral = false;
@@ -18,11 +19,11 @@ export default function CatalogoPagina() {
     const usuarioRaw = localStorage.getItem('usuario');
     if (usuarioRaw) {
       const usuario = JSON.parse(usuarioRaw);
-      // Valida por nombre o email según lo registrado en la sesión
       const nombre = (usuario.nombre || '').toLowerCase();
       const email = (usuario.email || '').toLowerCase();
+      const rol = (usuario.rol || '').toUpperCase();
 
-      esGerenteGeneral = nombre.includes('gerente') || email.includes('gerente');
+      esGerenteGeneral = rol === 'GERENTE_GENERAL' || nombre.includes('gerente') || email.includes('gerente');
     }
   } catch (e) {
     console.error('Error al leer sesión:', e);
@@ -30,8 +31,10 @@ export default function CatalogoPagina() {
 
   useEffect(() => {
     obtenerPlanesBaseServicio()
-      .then((datos) => {
-        setPlanes(Array.isArray(datos) ? datos : []);
+      .then((respuesta) => {
+        // Soporta respuesta en array directo o con wrapper { datos: [] }
+        const lista = respuesta.datos || respuesta;
+        setPlanes(Array.isArray(lista) ? lista.slice(0, 3) : []);
         setCargando(false);
       })
       .catch((err) => {
@@ -41,13 +44,32 @@ export default function CatalogoPagina() {
       });
   }, []);
 
-  const manejarGuardarNuevoPlan = async (nuevoPlanDatos) => {
+  const abrirModalEditar = (plan) => {
+    setPlanAEditar(plan);
+    setModalAbierto(true);
+  };
+
+  const manejarGuardarEdicion = async (datosActualizados) => {
+    if (!planAEditar) return;
+
     try {
-      const planCreado = await crearPlanBaseServicio(nuevoPlanDatos);
-      setPlanes((planesPrevios) => [...planesPrevios, planCreado]);
+      const idPlan = planAEditar.idPL || planAEditar.id;
+      const respuesta = await modificarPlanBaseServicio(idPlan, datosActualizados);
+      
+      const planModificado = respuesta.datos || respuesta;
+
+      // Actualiza la tarjeta correspondiente en el estado local
+      setPlanes((planesPrevios) =>
+        planesPrevios.map((p) =>
+          (p.idPL || p.id) === idPlan ? { ...p, ...planModificado } : p
+        )
+      );
+
+      setModalAbierto(false);
+      setPlanAEditar(null);
     } catch (err) {
-      console.error('Error al guardar el plan base:', err);
-      alert('Ocurrió un error al guardar el plan base.');
+      console.error('Error al guardar las modificaciones:', err);
+      alert('Ocurrió un error al actualizar el plan base.');
     }
   };
 
@@ -73,20 +95,48 @@ export default function CatalogoPagina() {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'center',
-      alignItems: 'center',
+      alignItems: 'stretch',
       gap: '2.5rem',
       padding: '2rem',
       minHeight: '80vh',
       boxSizing: 'border-box'
     }}>
       {planes.length > 0 ? (
-        planes.map((plan) => (
-          <TarjetaPlanComponente
-            key={plan.idPL || plan.id || Math.random()}
-            titulo={`Plan Base #${plan.idPL || plan.id || ''}`}
-            precio={plan.costoBase ? `$${Number(plan.costoBase).toLocaleString('es-CL')}` : '$0'}
-            descripcion={plan.descripcion || 'Sin descripción'}
-          />
+        planes.map((plan, index) => (
+          <div 
+            key={plan.idPL || plan.id || index}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <TarjetaPlanComponente
+              titulo={`Plan Base #${plan.idPL || plan.id || (index + 1)}`}
+              precio={plan.costoBase ? `$${Number(plan.costoBase).toLocaleString('es-CL')}` : '$0'}
+              descripcion={plan.descripcion || 'Sin descripción'}
+            />
+
+            {/* El botón de editar solo es visible para el Gerente General */}
+            {esGerenteGeneral && (
+              <button
+                onClick={() => abrirModalEditar(plan)}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.6rem 1.2rem',
+                  backgroundColor: '#734b75',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Editar Plan #{index + 1}
+              </button>
+            )}
+          </div>
         ))
       ) : (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
@@ -96,19 +146,15 @@ export default function CatalogoPagina() {
         </div>
       )}
 
-      {/* Renderiza el botón + si el usuario es Gerente */}
-      {esGerenteGeneral && (
-        <BotonComponente
-          texto="+"
-          variante="icono"
-          onClick={() => setModalAbierto(true)}
-        />
-      )}
-
+      {/* Modal para editar el plan base seleccionado */}
       <VentanaEmergenteCatalogoComponente
         abierto={modalAbierto}
-        alCerrar={() => setModalAbierto(false)}
-        alGuardar={manejarGuardarNuevoPlan}
+        planActual={planAEditar}
+        alCerrar={() => {
+          setModalAbierto(false);
+          setPlanAEditar(null);
+        }}
+        alGuardar={manejarGuardarEdicion}
       />
     </main>
   );
