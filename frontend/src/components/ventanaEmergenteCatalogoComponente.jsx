@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CONFIG_CATALOGO } from '../utilidades/catalogoConstantes.js';
 
 export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, alGuardar, planActual }) {
   const [costoBase, setCostoBase] = useState('');
@@ -6,7 +7,9 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
   const [errorLocal, setErrorLocal] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  // Precargar los datos del plan actual cuando cambie o se abra el modal
+  // Uso de la variable global
+  const MAX_CARACTERES = CONFIG_CATALOGO.MAX_CARACTERES_DESCRIPCION;
+
   useEffect(() => {
     if (planActual) {
       setCostoBase(planActual.costoBase || '');
@@ -25,6 +28,11 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
 
     if (!costoBase || !descripcion.trim()) {
       setErrorLocal('Por favor completa todos los campos.');
+      return;
+    }
+
+    if (descripcion.length > MAX_CARACTERES) {
+      setErrorLocal(`La descripción no puede superar los ${MAX_CARACTERES} caracteres.`);
       return;
     }
 
@@ -105,11 +113,22 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#374151' }}>
-              Descripción (Nombre y Detalles):
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontWeight: 'bold', color: '#374151' }}>
+                Descripción:
+              </label>
+              <span style={{ 
+                fontSize: '0.85rem', 
+                color: descripcion.length >= MAX_CARACTERES ? '#ef4444' : '#6b7280',
+                fontWeight: descripcion.length >= MAX_CARACTERES ? 'bold' : 'normal'
+              }}>
+                {descripcion.length} de {MAX_CARACTERES} caracteres permitidos
+              </span>
+            </div>
+
             <textarea
               rows="4"
+              maxLength={MAX_CARACTERES}
               placeholder="Descripción detallada del plan base..."
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
@@ -117,9 +136,10 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
                 width: '100%',
                 padding: '0.65rem',
                 borderRadius: '4px',
-                border: '1px solid #d1d5db',
+                border: descripcion.length >= MAX_CARACTERES ? '1.5px solid #ef4444' : '1px solid #d1d5db',
                 boxSizing: 'border-box',
-                resize: 'vertical'
+                resize: 'none',
+                outline: 'none'
               }}
             />
           </div>

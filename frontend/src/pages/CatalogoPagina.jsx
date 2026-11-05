@@ -57,13 +57,10 @@ export default function CatalogoPagina() {
 
     const idPlan = planAEditar.idPL || planAEditar.id;
     
-    // Llamada al servicio
     const respuesta = await modificarPlanBaseServicio(idPlan, datosActualizados);
 
-    // Extraemos el plan modificado real
     const planModificado = respuesta.datos || respuesta;
 
-    // Actualizamos el estado local
     setPlanes((planesPrevios) =>
       planesPrevios.map((p) =>
         (p.idPL || p.id) === idPlan ? { ...p, ...planModificado } : p
@@ -92,53 +89,64 @@ export default function CatalogoPagina() {
 
   return (
     <main style={{
-      display: 'flex',
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'stretch',
-      gap: '2.5rem',
+      width: '100%',
       padding: '2rem',
-      minHeight: '80vh',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '80vh'
     }}>
       {planes.length > 0 ? (
-        planes.map((plan, index) => (
-          <div 
-            key={plan.idPL || plan.id || index}
-            style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}
-          >
-            <TarjetaPlanComponente
-              titulo={`Plan Base #${plan.idPL || plan.id || (index + 1)}`}
-              precio={plan.costoBase ? `$${Number(plan.costoBase).toLocaleString('es-CL')}` : '$0'}
-              descripcion={plan.descripcion || 'Sin descripción'}
-            />
+        <div style={{
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
+          justifyContent: 'space-between',
+          alignItems: 'stretch',
+          gap: '2rem',
+          width: '100%',
+          maxWidth: '1200px'
+        }}>
+          {planes.map((plan, index) => (
+            <div 
+              key={plan.idPL || plan.id || index}
+              style={{ 
+                flex: '1 1 0px',             /* Ocupa el mismo ancho exacto para las 3 columnas */
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'stretch',
+                justifyContent: 'space-between',
+                minWidth: '0'               /* Previene que el texto desborde la fila */
+              }}
+            >
+              <TarjetaPlanComponente
+                titulo={`Plan Base #${plan.idPL || plan.id || (index + 1)}`}
+                precio={plan.costoBase ? `$${Number(plan.costoBase).toLocaleString('es-CL')}` : '$0'}
+                descripcion={plan.descripcion || 'Sin descripción'}
+              />
 
-            {/* El botón de editar solo es visible para el Gerente General */}
-            {esGerenteGeneral && (
-              <button
-                onClick={() => abrirModalEditar(plan)}
-                style={{
-                  marginTop: '1rem',
-                  padding: '0.6rem 1.2rem',
-                  backgroundColor: '#734b75',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                Editar Plan #{index + 1}
-              </button>
-            )}
-          </div>
-        ))
+              {esGerenteGeneral && (
+                <button
+                  onClick={() => abrirModalEditar(plan)}
+                  style={{
+                    marginTop: '1rem',
+                    padding: '0.6rem 1.2rem',
+                    backgroundColor: '#734b75',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    width: '100%'
+                  }}
+                >
+                  Editar Plan #{index + 1}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <p style={{ color: '#666', fontSize: '1.1rem' }}>
@@ -147,7 +155,6 @@ export default function CatalogoPagina() {
         </div>
       )}
 
-      {/* Modal para editar el plan base seleccionado */}
       <VentanaEmergenteCatalogoComponente
         abierto={modalAbierto}
         planActual={planAEditar}
