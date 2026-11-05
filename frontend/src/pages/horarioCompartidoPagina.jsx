@@ -4,7 +4,7 @@ import { obtenerPlanesEspecificosServicio } from '../servicios/planEspecificoSer
 export default function HorarioCompartidoPagina() {
   const [eventos, setEventos] = useState([]);
   const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState(null);
+  const [errorApi, setErrorApi] = useState(false);
 
   // Control del mes y año visible en el calendario
   const [fechaActual, setFechaActual] = useState(new Date());
@@ -14,13 +14,14 @@ export default function HorarioCompartidoPagina() {
     const cargarDatos = async () => {
       try {
         setCargando(true);
-        setError(null);
+        setErrorApi(false);
         const respuesta = await obtenerPlanesEspecificosServicio();
         const lista = respuesta.datos || respuesta;
         setEventos(Array.isArray(lista) ? lista : []);
       } catch (err) {
-        console.error('Error al cargar calendario de eventos:', err);
-        setError('No se pudieron obtener los datos de ocupación (mostrando calendario en blanco).');
+        console.warn('⚠️ No se pudieron obtener los datos de la API (se mostrará el calendario vacío):', err);
+        setErrorApi(true);
+        setEventos([]); // Mantiene el calendario limpio sin romper la pantalla
       } finally {
         setCargando(false);
       }
@@ -82,25 +83,25 @@ export default function HorarioCompartidoPagina() {
           <h1 style={{ color: '#523354', margin: 0, fontSize: '1.8rem' }}>📅 Horario Compartido</h1>
           <p style={{ color: '#666', margin: '4px 0 0 0', fontSize: '0.9rem' }}>Consulta la ocupación y disponibilidad de fechas.</p>
         </div>
-        {cargando && <span style={{ fontSize: '0.85rem', color: '#734b75', fontWeight: 'bold' }}>🔄 Actualizando...</span>}
+        {cargando && <span style={{ fontSize: '0.85rem', color: '#734b75', fontWeight: 'bold' }}>🔄 Cargando ocupación...</span>}
       </div>
 
-      {error && (
-        <div style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '0.8rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          ⚠️ {error}
+      {errorApi && (
+        <div style={{ backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', padding: '0.8rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem' }}>
+          ⚠️ Conexión en modo sin datos: No se pudo sincronizar la lista de eventos desde la API (puedes navegar el calendario normalmente).
         </div>
       )}
 
       {/* Selector de Meses */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', backgroundColor: '#fff', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-        <button onClick={mesAnterior} style={btnNavStyle}>&lt; Mes Anterior</button>
+        <button type="button" onClick={mesAnterior} style={btnNavStyle}>&lt; Mes Anterior</button>
         <h2 style={{ margin: 0, color: '#523354', fontSize: '1.2rem' }}>
           {nombresMeses[mes]} {ano}
         </h2>
-        <button onClick={mesSiguiente} style={btnNavStyle}>Mes Siguiente &gt;</button>
+        <button type="button" onClick={mesSiguiente} style={btnNavStyle}>Mes Siguiente &gt;</button>
       </div>
 
-      {/* Grilla del Calendario (Siempre visible) */}
+      {/* Grilla del Calendario (SIEMPRE VISIBLE) */}
       <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
         {/* Encabezados de días */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontWeight: 'bold', color: '#734b75', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
@@ -113,7 +114,7 @@ export default function HorarioCompartidoPagina() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginTop: '10px' }}>
           {/* Días en blanco del mes anterior */}
           {Array.from({ length: diaInicioSemana }).map((_, i) => (
-            <div key={`vacio-${i}`} style={{ height: '80px', backgroundColor: '#f9fafb', borderRadius: '8px' }} />
+            <div key={`vacio-${i}`} style={{ height: '85px', backgroundColor: '#f9fafb', borderRadius: '8px' }} />
           ))}
 
           {/* Días numéricos */}
@@ -174,7 +175,7 @@ export default function HorarioCompartidoPagina() {
             <h3 style={{ margin: 0, color: '#991b1b', fontSize: '1.1rem' }}>
               Ocupación para el {diaSeleccionado.fecha}
             </h3>
-            <button onClick={() => setDiaSeleccionado(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#888' }}>✕ Cerrar</button>
+            <button type="button" onClick={() => setDiaSeleccionado(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#888' }}>✕ Cerrar</button>
           </div>
 
           <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
