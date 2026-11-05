@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerPlanesBase } = require('../controladores/catalogoControlador');
-const { crearPlanBase } = require('../controladores/catalogoControlador');
+const { obtenerPlanesBase, modificarPlanBase } = require('../controladores/catalogoControlador');
 
-// Ruta GET para obtener la lista del catálogo
-// Endpoint final: /api/catalogo/planes-base
+// GET /api/catalogo/planes-base
 router.get('/planes-base', obtenerPlanesBase);
-//ruta post para crear un nuevo plan base
-router.post('/crear-plan-base', crearPlanBase);
+
+// PUT /api/catalogo/plan-base/:idPL
+router.put('/plan-base/:idPL', modificarPlanBase);
 
 module.exports = router;

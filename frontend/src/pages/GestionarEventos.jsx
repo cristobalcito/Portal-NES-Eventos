@@ -25,10 +25,11 @@ export default function GestionarEventos() {
         return respuesta.json();
       })
       .then((datos) => {
-        if (Array.isArray(datos)) {
-          setEventos(datos);
-          if (datos.length > 0) {
-            setEventoSeleccionado(datos[0]);
+        const lista = Array.isArray(datos) ? datos : (datos.datos || []);
+        if (Array.isArray(lista)) {
+          setEventos(lista);
+          if (lista.length > 0) {
+            setEventoSeleccionado(lista[0]);
           } else {
             setEventoSeleccionado(null);
           }
@@ -57,13 +58,13 @@ export default function GestionarEventos() {
       throw new Error(datos.mensaje || 'No se pudo crear el evento');
     }
 
-    // Se agrega a la lista manteniendo el orden por fecha y se deja seleccionado
+    const nuevo = datos.datos || datos;
     setEventos((anteriores) =>
-      [...anteriores, datos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+      [...anteriores, nuevo].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
     );
-    setEventoSeleccionado(datos);
+    setEventoSeleccionado(nuevo);
     setBusqueda('');
-    mostrarMensaje(`Evento "${datos.descripcion}" creado correctamente.`);
+    mostrarMensaje(datos.mensaje || `Evento "${nuevo.descripcion}" creado correctamente.`);
   };
 
   // Muestra un mensaje verde por unos segundos
@@ -86,7 +87,7 @@ export default function GestionarEventos() {
       throw new Error(datos.mensaje || 'No se pudo editar el evento');
     }
 
-    const editado = datos.evento;
+    const editado = datos.evento || datos.datos || datos;
     setEventos((anteriores) =>
       anteriores
         .map((e) => ((e.idPE || e.id) === (editado.idPE || editado.id) ? editado : e))
@@ -95,7 +96,7 @@ export default function GestionarEventos() {
     setEventoSeleccionado(editado);
 
     const avisos = Array.isArray(datos.avisos) && datos.avisos.length > 0 ? ` ${datos.avisos.join(' ')}` : '';
-    mostrarMensaje(`Evento "${editado.descripcion}" actualizado.${avisos}`, avisos ? 6000 : 3000);
+    mostrarMensaje(datos.mensaje || `Evento "${editado.descripcion}" actualizado.${avisos}`, avisos ? 6000 : 3000);
   };
 
   // Elimina el evento confirmado en el cuadro de diálogo
@@ -115,7 +116,7 @@ export default function GestionarEventos() {
       if (eventoSeleccionado && (eventoSeleccionado.idPE || eventoSeleccionado.id) === id) {
         setEventoSeleccionado(restantes[0] || null);
       }
-      mostrarMensaje(`Evento "${eventoAEliminar.descripcion}" eliminado.`);
+      mostrarMensaje(datos.mensaje || `Evento "${eventoAEliminar.descripcion}" eliminado.`);
       setEventoAEliminar(null);
     } catch (err) {
       setErrorEliminar(err.message);
@@ -255,13 +256,14 @@ export default function GestionarEventos() {
                 key={evento.idPE || evento.id || index} 
                 onClick={() => setEventoSeleccionado(evento)}
                 style={{ 
-                  backgroundColor: '#d499a7', borderRadius: '30px', padding: '15px 25px', 
+                  backgroundColor: evento.estado === 'PENDIENTE' ? '#d97706' : '#d499a7', borderRadius: '30px', padding: '15px 25px', 
                   marginBottom: '15px', display: 'flex', justifyContent: 'space-between', 
                   alignItems: 'center', border: '1px solid black', boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
                   cursor: 'pointer' 
                 }}
               >
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
+                  {evento.estado === 'PENDIENTE' ? '[PENDIENTE] ' : ''}
                   {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'}
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -288,7 +290,14 @@ export default function GestionarEventos() {
         }}>
           {eventoSeleccionado ? (
             <>
-              <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>{eventoSeleccionado.descripcion}</h2>
+              <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
+                {eventoSeleccionado.descripcion}
+                {eventoSeleccionado.estado && (
+                  <span style={{ fontSize: '14px', marginLeft: '10px', color: eventoSeleccionado.estado === 'PENDIENTE' ? '#d97706' : '#15803d' }}>
+                    ({eventoSeleccionado.estado})
+                  </span>
+                )}
+              </h2>
               <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
                 <p style={{ margin: '5px 0' }}>Organizador(a) / Personal: {eventoSeleccionado.personal || 'No asignado'}</p>
                 <p style={{ margin: '5px 0' }}>Ubicación: {eventoSeleccionado.lugar || 'No especificado'}</p>

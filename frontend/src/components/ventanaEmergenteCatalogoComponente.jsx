@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { CONFIG_CATALOGO } from '../utilidades/catalogoConstantes.js';
 
-export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, alGuardar }) {
+export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, alGuardar, planActual }) {
   const [costoBase, setCostoBase] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [errorLocal, setErrorLocal] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  // Uso de la variable global
+  const MAX_CARACTERES = CONFIG_CATALOGO.MAX_CARACTERES_DESCRIPCION;
+
+  useEffect(() => {
+    if (planActual) {
+      setCostoBase(planActual.costoBase || '');
+      setDescripcion(planActual.descripcion || '');
+    } else {
+      setCostoBase('');
+      setDescripcion('');
+    }
+  }, [planActual, abierto]);
 
   if (!abierto) return null;
 
@@ -17,6 +31,11 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
       return;
     }
 
+    if (descripcion.length > MAX_CARACTERES) {
+      setErrorLocal(`La descripción no puede superar los ${MAX_CARACTERES} caracteres.`);
+      return;
+    }
+
     try {
       setGuardando(true);
       await alGuardar({
@@ -24,13 +43,11 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
         descripcion: descripcion.trim()
       });
 
-      setCostoBase('');
-      setDescripcion('');
       setGuardando(false);
       alCerrar();
     } catch (err) {
       console.error('Error al guardar desde el modal:', err);
-      setErrorLocal('Ocurrió un error al guardar el plan base.');
+      setErrorLocal('Ocurrió un error al guardar las modificaciones.');
       setGuardando(false);
     }
   };
@@ -57,7 +74,7 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
       }}>
         <h2 style={{ marginTop: 0, color: '#1f2937', marginBottom: '1.5rem' }}>
-          Agregar Nuevo Plan Base
+          Editar Plan Base #{planActual?.idPL || ''}
         </h2>
 
         {errorLocal && (
@@ -96,11 +113,22 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
           </div>
 
           <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', color: '#374151' }}>
-              Descripción:
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <label style={{ fontWeight: 'bold', color: '#374151' }}>
+                Descripción:
+              </label>
+              <span style={{ 
+                fontSize: '0.85rem', 
+                color: descripcion.length >= MAX_CARACTERES ? '#ef4444' : '#6b7280',
+                fontWeight: descripcion.length >= MAX_CARACTERES ? 'bold' : 'normal'
+              }}>
+                {descripcion.length} de {MAX_CARACTERES} caracteres permitidos
+              </span>
+            </div>
+
             <textarea
               rows="4"
+              maxLength={MAX_CARACTERES}
               placeholder="Descripción detallada del plan base..."
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
@@ -108,9 +136,10 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
                 width: '100%',
                 padding: '0.65rem',
                 borderRadius: '4px',
-                border: '1px solid #d1d5db',
+                border: descripcion.length >= MAX_CARACTERES ? '1.5px solid #ef4444' : '1px solid #d1d5db',
                 boxSizing: 'border-box',
-                resize: 'vertical'
+                resize: 'none',
+                outline: 'none'
               }}
             />
           </div>
@@ -144,7 +173,7 @@ export default function VentanaEmergenteCatalogoComponente({ abierto, alCerrar, 
                 cursor: guardando ? 'not-allowed' : 'pointer'
               }}
             >
-              {guardando ? 'Guardando...' : 'Guardar Plan'}
+              {guardando ? 'Guardando...' : 'Guardar Cambios'}
             </button>
           </div>
         </form>

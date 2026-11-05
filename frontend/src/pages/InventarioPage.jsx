@@ -7,12 +7,12 @@ export default function InventarioPage() {
   useEffect(() => {
     fetch('http://localhost:3000/api/inventario')
       .then((res) => res.json())
-      .then((data) => setProductos(data))
+      .then((data) => setProductos(Array.isArray(data) ? data : (data.datos || [])))
       .catch((err) => console.error("Error al cargar:", err));
   }, []);
 
-  const productosFiltrados = productos.filter((item) =>
-    item.producto.toLowerCase().includes(busqueda.toLowerCase())
+  const productosFiltrados = (Array.isArray(productos) ? productos : []).filter((item) =>
+    (item.producto || '').toLowerCase().includes(busqueda.toLowerCase())
   );
 
   return (

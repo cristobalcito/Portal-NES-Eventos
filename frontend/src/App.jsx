@@ -5,9 +5,7 @@ import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
 import GestionUsuarios from './pages/GestionarUsuarioPage.jsx';
-import MantencionesPagina from './pages/MantencionesPagina.jsx';
-import EquiposArrendadosPagina from './pages/EquiposArrendadosPagina.jsx';
-import EstadoEquiposPagina from './pages/EstadoEquiposPagina.jsx';
+import HorarioCompartidoPagina from './pages/HorarioCompartidoPagina.jsx'; // 👈 1. Importación agregada
 import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
@@ -110,6 +108,9 @@ function App() {
         switch (seccionActual) {
             case '/eventos':
                 return <GestionarEventos {...propsDeNavegacion} />;
+            case '/horario': // 👈 2. Caso agregado para renderizar la vista de Horario Compartido
+            case '/horario-compartido':
+                return <HorarioCompartidoPagina {...propsDeNavegacion} />;
             case '/personal':
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
