@@ -210,8 +210,67 @@ const modificarPlanEspecifico = async (req, res) => {
   }
 };
 
+const eliminarPlanEspecifico = async (req, res) => {
+  try {
+    const { idPE } = req.params;
+    const idNumerico = parseInt(idPE, 10);
+
+    const planExistente = await prisma.planEspecifico.findUnique({
+      where: { idPE: idNumerico }
+    });
+
+    if (!planExistente) {
+      return res.status(404).json({
+        exito: false,
+        mensaje: 'El plan específico no existe.'
+      });
+    }
+
+    const diasAntelacion = obtenerDiferenciaDias(planExistente.fecha);
+
+    // Determinar si aplica penalización del 50%
+    const menosDeUnaSemana = diasAntelacion < CONFIG_PLAN_ESPECIFICO.DIAS_LIMITE_CON_RECARGO;
+    const montoReembolso = menosDeUnaSemana
+      ? Math.round(planExistente.costoTotal * CONFIG_PLAN_ESPECIFICO.PORCENTAJE_REEMBOLSO_CANCELAR)
+      : planExistente.costoTotal;
+
+    // Ejecutar en transacción (Eliminar el plan o cancelar y restaurar stock en inventario)
+    await prisma.$transaction(async (tx) => {
+      // 1. Eliminar horario asociado si existe
+      await tx.horario.deleteMany({
+        where: { planEspecificoId: idNumerico }
+      });
+
+      // 2. Eliminar el plan específico
+      await tx.planEspecifico.delete({
+        where: { idPE: idNumerico }
+      });
+
+      // Nota: Si mantienes una tabla intermedia de relacion Equipamiento-PlanEspecifico, 
+      // aquí se iteran sus ítems para devolver el stock (incrementar 'disponible' y decrementar 'ocupado').
+    });
+
+    return res.status(200).json({
+      exito: true,
+      mensaje: menosDeUnaSemana
+        ? `Plan cancelado a menos de 1 semana. Aplica penalización: Reembolso del 50% ($${montoReembolso}).`
+        : `Plan específico eliminado y cancelado exitosamente. Reembolso total ($${montoReembolso}).`,
+      montoReembolso
+    });
+
+  } catch (error) {
+    console.error('Error al eliminar plan específico:', error);
+    return res.status(500).json({
+      exito: false,
+      mensaje: 'Error interno del servidor al eliminar el plan específico.',
+      detalles: error.message
+    });
+  }
+};
+
 module.exports = {
   crearPlanEspecifico,
   modificarPlanEspecifico,
+  eliminarPlanEspecifico,
   CONFIG_PLAN_ESPECIFICO
 };
