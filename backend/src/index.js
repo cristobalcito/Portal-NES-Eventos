@@ -15,7 +15,7 @@ var inventarioRouter = require('./rutas/inventario');
 var personalRouter = require('./rutas/personal');
 var catalogoRouter = require('./rutas/catalogoRutas');
 var usuariosRouter = require('./rutas/usuarioRutas');
-
+var planEspecificoRouter = require('./rutas/planEspecificoRutas');
 
 var app = express();
 
@@ -35,6 +35,7 @@ app.use('/api/inventario', inventarioRouter);
 app.use('/api/personal', personalRouter);
 app.use('/api/catalogo', catalogoRouter);
 app.use('/api/usuarios', usuariosRouter);
+app.use('/api/planes-especificos', planEspecificoRouter);
 
 app.use(function(req, res, next) {
   next(createError(404));
