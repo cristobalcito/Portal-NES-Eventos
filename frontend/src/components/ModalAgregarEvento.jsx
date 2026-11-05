@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CONFIG_CATALOGO } from '../utilidades/catalogoConstantes.js';
+import {
+  CONFIG_CATALOGO,
+  CONFIG_PLAN_ESPECIFICO
+} from '../utilidades/catalogoConstantes.js';
 
 const estadoInicial = {
+  planBaseId: '',
   descripcion: '',
   lugar: '',
   fecha: '',
@@ -32,6 +36,7 @@ const aHoraInput = (valor) => {
 
 // Arma el estado del formulario a partir de un evento existente
 const estadoDesdeEvento = (evento) => ({
+  planBaseId: evento.planBaseId ? String(evento.planBaseId) : '',
   descripcion: evento.descripcion || '',
   lugar: evento.lugar || '',
   fecha: evento.fecha ? aFechaInput(evento.fecha) : '',
@@ -51,25 +56,36 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   const [guardando, setGuardando] = useState(false);
   const [alertaRegla, setAlertaRegla] = useState('');
 
-  // Límite de caracteres global
+  // Constantes globales importadas
   const MAX_CARACTERES = CONFIG_CATALOGO.MAX_CARACTERES_DESCRIPCION || 300;
+  const VARIACION_MAXIMA = CONFIG_CATALOGO.PORCENTAJE_MAXIMO_VARIACION_PRECIO || 0.25;
+  const DIAS_CREACION_MINIMOS = CONFIG_PLAN_ESPECIFICO.DIAS_MINIMOS_CREACION || 14;
 
-  // Equipamiento de inventario
+  // Catálogos
+  const [planesBase, setPlanesBase] = useState([]);
   const [listaInventario, setListaInventario] = useState([]);
   const [equipamientoSeleccionado, setEquipamientoSeleccionado] = useState([]);
+  const [rangoPrecioPermitido, setRangoPrecioPermitido] = useState(null);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   // Calcular la fecha mínima para creación (Hoy + 14 días)
   const obtenerFechaMinima = () => {
     const hoy = new Date();
-    hoy.setDate(hoy.getDate() + 14);
+    hoy.setDate(hoy.getDate() + DIAS_CREACION_MINIMOS);
     return aFechaInput(hoy);
   };
 
-  // Cargar lista de inventario al abrir
+  // Cargar listas de Planes Base e Inventario al abrir
   useEffect(() => {
     if (isOpen) {
+      // 1. Cargar Planes Base
+      fetch(`${API_URL}/api/planes-base`)
+        .then((res) => res.json())
+        .then((data) => setPlanesBase(Array.isArray(data) ? data : (data.datos || [])))
+        .catch((err) => console.error("Error al cargar planes base:", err));
+
+      // 2. Cargar Inventario
       fetch(`${API_URL}/api/inventario`)
         .then((res) => res.json())
         .then((data) => setListaInventario(Array.isArray(data) ? data : (data.datos || [])))
@@ -80,11 +96,16 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   // Reiniciar (o precargar en modo edición) el formulario cada vez que se abre el modal
   useEffect(() => {
     if (isOpen) {
-      setFormData(eventoInicial ? estadoDesdeEvento(eventoInicial) : {
-        ...estadoInicial,
-        fecha: obtenerFechaMinima()
-      });
+      if (eventoInicial) {
+        setFormData(estadoDesdeEvento(eventoInicial));
+      } else {
+        setFormData({
+          ...estadoInicial,
+          fecha: obtenerFechaMinima()
+        });
+      }
       setEquipamientoSeleccionado([]);
+      setRangoPrecioPermitido(null);
       setError('');
       setGuardando(false);
       setAlertaRegla('');
@@ -93,10 +114,42 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
 
   if (!isOpen) return null;
 
+  // Selección de Plan Base y cálculo de la variación del 25%
+  const manejarSeleccionPlanBase = (e) => {
+    const selectedId = e.target.value;
+
+    if (!selectedId) {
+      setFormData((prev) => ({ ...prev, planBaseId: '' }));
+      setRangoPrecioPermitido(null);
+      return;
+    }
+
+    const planEncontrado = planesBase.find((pb) => String(pb.idPL || pb.id) === String(selectedId));
+
+    if (planEncontrado) {
+      const costoBase = Math.round(planEncontrado.costoBase || 0);
+      const min = Math.round(costoBase * (1 - VARIACION_MAXIMA));
+      const max = Math.round(costoBase * (1 + VARIACION_MAXIMA));
+
+      setRangoPrecioPermitido({
+        base: costoBase,
+        min,
+        max,
+        porcentaje: VARIACION_MAXIMA * 100
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        planBaseId: selectedId,
+        costoTotal: costoBase.toString(),
+        descripcion: planEncontrado.descripcion ? planEncontrado.descripcion.substring(0, MAX_CARACTERES) : prev.descripcion
+      }));
+    }
+  };
+
   const validarReglasEnTiempoReal = async (nombreCampo, valorNuevo) => {
     if (!esEdicion || !eventoInicial) return;
 
-    // A) Validar regla de cambio de fecha
     if (nombreCampo === 'fecha' && valorNuevo) {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
@@ -117,7 +170,6 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
       }
     }
 
-    // B) Validar regla de cambio de invitados (RF-FC-03)
     if (nombreCampo === 'numPersonas' && valorNuevo) {
       const fechaEvento = new Date(formData.fecha || eventoInicial.fecha);
       const hoy = new Date();
@@ -144,7 +196,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Validación en tiempo real para costoTotal (Solo números enteros positivos)
+    // Validación en tiempo real para costoTotal (Solo enteros positivos)
     if (name === 'costoTotal') {
       if (value !== '' && (!/^\d+$/.test(value) || parseInt(value, 10) < 0)) {
         return;
@@ -186,14 +238,14 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
-    // Validación de 14 días mínimos para la creación de planes
+    // Validación de antelación mínima (14 días)
     if (!esEdicion) {
       const fechaMinimaPermitida = new Date();
-      fechaMinimaPermitida.setDate(fechaMinimaPermitida.getDate() + 14);
+      fechaMinimaPermitida.setDate(fechaMinimaPermitida.getDate() + DIAS_CREACION_MINIMOS);
       fechaMinimaPermitida.setHours(0, 0, 0, 0);
 
       if (new Date(`${formData.fecha}T00:00:00`) < fechaMinimaPermitida) {
-        return 'Los planes específicos deben crearse con al menos 14 días (2 semanas) de anticipación.';
+        return `Los planes específicos deben crearse con al menos ${DIAS_CREACION_MINIMOS} días (2 semanas) de anticipación.`;
       }
     } else {
       const fechaCambio = formData.fecha !== aFechaInput(eventoInicial.fecha);
@@ -206,6 +258,13 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
     const costo = Number(formData.costoTotal);
     if (formData.costoTotal === '' || Number.isNaN(costo) || costo < 0 || !Number.isInteger(costo)) {
       return 'El costo total debe ser un número entero positivo (sin decimales ni negativos).';
+    }
+
+    // Validación de variación del 25% respecto al Plan Base
+    if (rangoPrecioPermitido) {
+      if (costo < rangoPrecioPermitido.min || costo > rangoPrecioPermitido.max) {
+        return `El precio ingresado excede el límite del ${rangoPrecioPermitido.porcentaje}% de variación sobre el Plan Base ($${rangoPrecioPermitido.base.toLocaleString('es-CL')} CLP). Rango permitido: $${rangoPrecioPermitido.min.toLocaleString('es-CL')} - $${rangoPrecioPermitido.max.toLocaleString('es-CL')} CLP.`;
+      }
     }
 
     const horas = [formData.horaSalida, formData.horaLlegada, formData.horaVuelta];
@@ -226,9 +285,9 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
     const tieneHorario = formData.horaSalida && formData.horaLlegada && formData.horaVuelta;
 
     const datosEvento = {
+      planBaseId: formData.planBaseId ? Number(formData.planBaseId) : null,
       descripcion: formData.descripcion.trim(),
       lugar: formData.lugar.trim(),
-      // Se guarda al mediodía para que la zona horaria no cambie el día
       fecha: unirFechaHora(formData.fecha, '12:00'),
       numPersonas: Number(formData.numPersonas),
       costoTotal: Number(formData.costoTotal),
@@ -280,7 +339,7 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
           borderBottom: '2px solid #8a5b96', paddingBottom: '10px', marginBottom: '20px'
         }}>
           <h2 style={{ margin: 0, color: '#523354', fontSize: '22px' }}>
-            {esEdicion ? '✏️ Editar evento' : '📅 Agregar evento'}
+            {esEdicion ? '✏️ Editar evento' : '📅 Agregar evento / Plan Específico'}
           </h2>
           <button
             type="button"
@@ -292,6 +351,32 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          
+          {/* Selector Opcional de Plan Base */}
+          {!esEdicion && (
+            <div style={{ backgroundColor: '#f3e8f4', padding: '10px 14px', borderRadius: '10px' }}>
+              <label style={{ ...labelStyle, color: '#523354' }}>Vincular a un Plan Base (Opcional):</label>
+              <select
+                name="planBaseId"
+                value={formData.planBaseId}
+                onChange={manejarSeleccionPlanBase}
+                style={{ ...inputStyle, borderColor: '#8a5b96' }}
+              >
+                <option value="">-- Plan Personalizado (Sin Base) --</option>
+                {planesBase.map((pb) => (
+                  <option key={pb.idPL || pb.id} value={pb.idPL || pb.id}>
+                    {pb.nombre || `Plan Base #${pb.idPL || pb.id}`} - ${Number(pb.costoBase || 0).toLocaleString('es-CL')} CLP
+                  </option>
+                ))}
+              </select>
+              {rangoPrecioPermitido && (
+                <span style={{ fontSize: '11px', color: '#523354', display: 'block', marginTop: '4px' }}>
+                  💡 Variación máxima del {rangoPrecioPermitido.porcentaje}%: entre ${rangoPrecioPermitido.min.toLocaleString('es-CL')} y ${rangoPrecioPermitido.max.toLocaleString('es-CL')} CLP.
+                </span>
+              )}
+            </div>
+          )}
+
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={labelStyle}>Nombre / Descripción del evento *</label>
