@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CONFIG_CATALOGO } from '../constants/catalogoConstantes.js';
+import { CONFIG_CATALOGO } from '../utilidades/catalogoConstantes.js';
 
 const estadoInicial = {
   descripcion: '',
