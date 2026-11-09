@@ -1,6 +1,35 @@
-
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+
+export async function loginBackend(req, res) {
+  try {
+    const { rut, password } = req.body;
+
+    // 1. Busca al usuario por su RUT e incluye las relaciones de ROL
+    const usuario = await prisma.usuario.findUnique({
+      where: { rut },
+      include: {
+        gerenteGeneral: true,
+        personalOperaciones: true,
+        cliente: true,
+        personalEventual: true,
+      },
+    });
+
+    if (!usuario) {
+      return res.status(401).json({ mensaje: 'Usuario no encontrado' });
+    }
+
+    // 2. Responde al frontend con los datos del usuario
+    return res.json({
+      mensaje: 'Autenticación exitosa',
+      usuario,
+    });
+  } catch (error) {
+    console.error('Error en loginBackend:', error);
+    return res.status(500).json({ error: 'Error interno del servidor en inicio de sesión' });
+  }
+}
 
 export async function modificarUsuarioBackend(req, res) {
   try {

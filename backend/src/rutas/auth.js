@@ -3,7 +3,7 @@ var router = express.Router();
 var bcrypt = require('bcryptjs');
 var jwt = require('jsonwebtoken');
 var { getJwtSecret } = require('../lib/jwt');
-var prisma = require('../lib/prisma'); // O la ruta correspondiente a tu instancia de Prisma
+var prisma = require('../lib/prisma');
 
 router.post('/login', async function(req, res) {
   const { email, password } = req.body;

@@ -12,7 +12,7 @@ export default function CatalogoPagina() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [planAEditar, setPlanAEditar] = useState(null);
 
-  // 1. Extraer los datos del usuario desde localStorage
+  // Extraer datos del usuario desde localStorage para validar rol
   let esGerenteGeneral = false;
   try {
     const usuarioRaw = localStorage.getItem('usuario');
@@ -112,12 +112,12 @@ export default function CatalogoPagina() {
             <div 
               key={plan.idPL || plan.id || index}
               style={{ 
-                flex: '1 1 0px',             /* Ocupa el mismo ancho exacto para las 3 columnas */
+                flex: '1 1 0px',
                 display: 'flex', 
                 flexDirection: 'column', 
                 alignItems: 'stretch',
                 justifyContent: 'space-between',
-                minWidth: '0'               /* Previene que el texto desborde la fila */
+                minWidth: '0'
               }}
             >
               <TarjetaPlanComponente

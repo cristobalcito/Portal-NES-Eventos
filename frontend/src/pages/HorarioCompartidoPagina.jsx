@@ -6,7 +6,6 @@ export default function HorarioCompartidoPagina() {
   const [cargando, setCargando] = useState(false);
   const [errorApi, setErrorApi] = useState(false);
 
-  // Control del mes y año visible en el calendario
   const [fechaActual, setFechaActual] = useState(new Date());
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
 
@@ -19,9 +18,9 @@ export default function HorarioCompartidoPagina() {
         const lista = respuesta.datos || respuesta;
         setEventos(Array.isArray(lista) ? lista : []);
       } catch (err) {
-        console.warn('⚠️ No se pudieron obtener los datos de la API (se mostrará el calendario vacío):', err);
+        console.warn('⚠️ No se pudieron obtener los datos de la API:', err);
         setErrorApi(true);
-        setEventos([]); // Mantiene el calendario limpio sin romper la pantalla
+        setEventos([]);
       } finally {
         setCargando(false);
       }
@@ -40,16 +39,15 @@ export default function HorarioCompartidoPagina() {
     setDiaSeleccionado(null);
   };
 
-  // Cálculo de fechas y celdas para el mes activo
+  // Cálculo del mes activo
   const ano = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
-  
-  const primerDiaMes = new Date(ano, mes, 1).getDay(); 
-  // Ajustar para que el primer día de la semana sea Lunes (0: Lunes, ..., 6: Domingo)
+
+  const primerDiaMes = new Date(ano, mes, 1).getDay();
   const diaInicioSemana = primerDiaMes === 0 ? 6 : primerDiaMes - 1;
   const diasEnMes = new Date(ano, mes + 1, 0).getDate();
 
-  // Mapear eventos por fecha en formato local YYYY-MM-DD
+  // Agrupación de eventos por fecha local (YYYY-MM-DD)
   const eventosPorFecha = {};
   if (Array.isArray(eventos)) {
     eventos.forEach((ev) => {
@@ -75,6 +73,13 @@ export default function HorarioCompartidoPagina() {
 
   const diasSemana = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
+  // Función para cálculo de aforo
+  const calcularPorcentajeAforo = (asistentes, maximo) => {
+    if (!maximo || maximo <= 0) return null;
+    const pct = Math.round(((asistentes || 0) / maximo) * 100);
+    return pct > 100 ? 100 : pct;
+  };
+
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
       {/* Encabezado */}
@@ -88,7 +93,7 @@ export default function HorarioCompartidoPagina() {
 
       {errorApi && (
         <div style={{ backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', padding: '0.8rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.85rem' }}>
-          ⚠️ Conexión en modo sin datos: No se pudo sincronizar la lista de eventos desde la API (puedes navegar el calendario normalmente).
+          ⚠️ Conexión en modo sin datos: No se pudo sincronizar la lista de eventos desde la API.
         </div>
       )}
 
@@ -101,23 +106,21 @@ export default function HorarioCompartidoPagina() {
         <button type="button" onClick={mesSiguiente} style={btnNavStyle}>Mes Siguiente &gt;</button>
       </div>
 
-      {/* Grilla del Calendario (SIEMPRE VISIBLE) */}
+      {/* Grilla del Calendario */}
       <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
-        {/* Encabezados de días */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontWeight: 'bold', color: '#734b75', paddingBottom: '10px', borderBottom: '1px solid #eee' }}>
           {diasSemana.map((d) => (
             <div key={d}>{d}</div>
           ))}
         </div>
 
-        {/* Celdas del mes */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginTop: '10px' }}>
-          {/* Días en blanco del mes anterior */}
+          {/* Celdas vacías previas */}
           {Array.from({ length: diaInicioSemana }).map((_, i) => (
             <div key={`vacio-${i}`} style={{ height: '85px', backgroundColor: '#f9fafb', borderRadius: '8px' }} />
           ))}
 
-          {/* Días numéricos */}
+          {/* Días del mes */}
           {Array.from({ length: diasEnMes }).map((_, i) => {
             const numeroDia = i + 1;
             const mesStr = String(mes + 1).padStart(2, '0');
@@ -142,7 +145,7 @@ export default function HorarioCompartidoPagina() {
                   cursor: tieneOcupacion ? 'pointer' : 'default',
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'space-between',
+                  justify: 'space-between',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -168,22 +171,46 @@ export default function HorarioCompartidoPagina() {
         </div>
       </div>
 
-      {/* Detalle al pulsar un día ocupado */}
+      {/* Modal de Detalles del Día / Eventos */}
       {diaSeleccionado && (
-        <div style={{ marginTop: '1.5rem', backgroundColor: '#fff', padding: '1.2rem 1.5rem', borderRadius: '12px', borderLeft: '5px solid #ef4444', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, color: '#991b1b', fontSize: '1.1rem' }}>
-              Ocupación para el {diaSeleccionado.fecha}
-            </h3>
-            <button type="button" onClick={() => setDiaSeleccionado(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#888' }}>✕ Cerrar</button>
-          </div>
+        <div style={styles.modalOverlay} onClick={() => setDiaSeleccionado(null)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h3 style={styles.modalTitulo}>Eventos del {diaSeleccionado.fecha}</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '400px', overflowY: 'auto', margin: '1rem 0' }}>
+              {diaSeleccionado.eventos.map((ev, index) => {
+                const max = ev.numPersonas || ev.capacidadMaxima || ev.aforoMaximo;
+                const asis = ev.asistentes || ev.asistentesEstimados || 0;
+                const pct = calcularPorcentajeAforo(asis, max);
 
-          <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {diaSeleccionado.eventos.map((ev, index) => (
-              <div key={ev.idPE || index} style={{ backgroundColor: '#fef2f2', padding: '8px 12px', borderRadius: '6px', fontSize: '0.9rem', color: '#7f1d1d' }}>
-                📍 <strong>{ev.descripcion || `Evento #${ev.idPE}`}</strong> — Lugar: {ev.lugar || 'No especificado'}
-              </div>
-            ))}
+                return (
+                  <div key={ev.idPE || ev.id || index} style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '12px', border: '1px solid #e2e8f0' }}>
+                    <h4 style={{ margin: '0 0 8px 0', color: '#523354' }}>📍 {ev.descripcion || `Evento #${ev.idPE || ev.id}`}</h4>
+                    <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Lugar:</strong> {ev.lugar || 'No especificado'}</p>
+                    <p style={{ margin: '4px 0', fontSize: '0.9rem' }}><strong>Encargado/Personal:</strong> {ev.personal || 'Sin asignar'}</p>
+                    
+                    {/* Aforo / Capacidad */}
+                    <div style={{ marginTop: '8px', padding: '8px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                      <p style={{ margin: '0 0 4px 0', fontSize: '0.85rem', fontWeight: 'bold', color: '#334155' }}>Capacidad y Aforo</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#475569' }}>
+                        <span>Asistentes / Invitados:</span>
+                        <strong>{max ? `${max} personas` : 'No especificado'}</strong>
+                      </div>
+                      {pct !== null && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '4px', borderTop: '1px dashed #cbd5e1', fontSize: '0.8rem' }}>
+                          <span>Ocupación estimada:</span>
+                          <span style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>{pct}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button style={styles.btnCerrar} onClick={() => setDiaSeleccionado(null)}>
+              Cerrar
+            </button>
           </div>
         </div>
       )}
@@ -200,4 +227,43 @@ const btnNavStyle = {
   cursor: 'pointer',
   fontWeight: 'bold',
   fontSize: '0.85rem'
+};
+
+const styles = {
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    padding: '1.5rem',
+    borderRadius: '12px',
+    maxWidth: '500px',
+    width: '90%',
+    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+  },
+  modalTitulo: {
+    marginTop: 0,
+    color: '#0f172a',
+    borderBottom: '1px solid #e2e8f0',
+    paddingBottom: '0.5rem',
+  },
+  btnCerrar: {
+    width: '100%',
+    padding: '0.75rem',
+    backgroundColor: '#734b75',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
 };

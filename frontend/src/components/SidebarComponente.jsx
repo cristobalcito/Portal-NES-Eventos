@@ -1,10 +1,7 @@
-// frontend/src/components/SidebarComponente.jsx
-// frontend/src/components/SidebarComponente.jsx
 import React from 'react';
 import { obtenerEstiloBoton } from '../servicios/sidebarServicio.js';
 
 export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar, usuario }) {
-  // Lista base de opciones para todos los usuarios
   const menuItems = [
     { nombre: 'Home', ruta: '/home' },
     { nombre: 'Gestionar eventos', ruta: '/eventos' },

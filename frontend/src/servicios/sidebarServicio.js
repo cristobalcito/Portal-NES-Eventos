@@ -2,8 +2,9 @@
 
 /**
  * Obtiene el estilo para el botón de la barra lateral según la ruta activa
- * @param {string} rutaItem - Ruta del menú (ej: '/catalogo')
- * @param {string} rutaActual - Ruta/sección en la que se encuentra el usuario
+ * 
+ * @param {string} rutaItem Ruta del menú (ej: '/catalogo')
+ * @param {string} rutaActual Ruta/sección en la que se encuentra el usuario
  */
 export function obtenerEstiloBoton(rutaItem, rutaActual = '/catalogo') {
   const esActivo = rutaItem.toLowerCase() === rutaActual.toLowerCase();

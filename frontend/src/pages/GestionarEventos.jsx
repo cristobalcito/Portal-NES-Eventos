@@ -45,7 +45,7 @@ export default function GestionarEventos() {
       });
   }, [API_URL]);
 
-  // Envía el nuevo evento al backend. Si falla, lanza el error para que el modal lo muestre.
+  // Envía el nuevo evento al backend
   const crearEvento = async (datosEvento) => {
     const respuesta = await fetch(`${API_URL}/api/eventos`, {
       method: 'POST',
@@ -73,7 +73,7 @@ export default function GestionarEventos() {
     setTimeout(() => setMensajeExito(''), duracion);
   };
 
-  // Envía los cambios de un evento. El backend aplica las reglas de fecha e invitados.
+  // Envía los cambios de un evento
   const editarEvento = async (datosEvento) => {
     const id = eventoEditando.idPE || eventoEditando.id;
     const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, {
@@ -99,7 +99,7 @@ export default function GestionarEventos() {
     mostrarMensaje(datos.mensaje || `Evento "${editado.descripcion}" actualizado.${avisos}`, avisos ? 6000 : 3000);
   };
 
-  // Elimina el evento confirmado en el cuadro de diálogo
+  // Elimina el evento confirmado
   const confirmarEliminar = async () => {
     const id = eventoAEliminar.idPE || eventoAEliminar.id;
     try {
@@ -125,7 +125,7 @@ export default function GestionarEventos() {
     }
   };
 
-  // Envía los eventos leídos del CSV al backend y los agrega a la lista
+  // Importar eventos desde el CSV
   const importarEventos = async (eventosAImportar) => {
     const respuesta = await fetch(`${API_URL}/api/eventos/importar`, {
       method: 'POST',
@@ -166,7 +166,7 @@ export default function GestionarEventos() {
 
   const listaEventos = Array.isArray(eventos) ? eventos : [];
 
-  // El buscador revisa descripción, lugar y encargado
+  // Búsqueda en descripción, lugar y personal
   const textoBusqueda = busqueda.toLowerCase();
   const eventosFiltrados = listaEventos.filter((evento) =>
     [evento.descripcion, evento.lugar, evento.personal].some((campo) =>
@@ -192,7 +192,6 @@ export default function GestionarEventos() {
             padding: '10px 20px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
-            
             <input 
               type="text" 
               placeholder="Buscar eventos..." 
@@ -271,12 +270,16 @@ export default function GestionarEventos() {
                     title="Editar evento"
                     onClick={(e) => { e.stopPropagation(); abrirEditar(evento); }}
                     style={{ backgroundColor: 'white', color: '#523354', border: '1px solid #8a5b96', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >Editar</button>
+                  >
+                    Editar
+                  </button>
                   <button
                     title="Eliminar evento"
                     onClick={(e) => { e.stopPropagation(); setErrorEliminar(''); setEventoAEliminar(evento); }}
                     style={{ backgroundColor: 'white', color: '#c0392b', border: '1px solid #c0392b', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >Eliminar</button>
+                  >
+                    Eliminar
+                  </button>
                 </div>
               </div>
             ))

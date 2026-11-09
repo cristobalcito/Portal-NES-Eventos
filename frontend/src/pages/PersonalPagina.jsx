@@ -80,73 +80,73 @@ export default function PersonalPagina() {
   });
 
   const handleGuardarNuevoPersonal = async (formulario) => {
-  if (!personalSeleccionado) {
-    alert('Primero debes seleccionar un trabajador.');
-    return;
-  }
-
-  try {
-    const rut = personalSeleccionado.rut;
-
-    // Solo enviamos antecedentes laborales, no datos de la cuenta
-    const {
-      rol,
-      disponibilidad,
-      fono,
-      experiencia,
-      datosDePago,
-      tallaDeRopa
-    } = formulario;
-
-    const respuesta = await fetch(
-      `${API_URL}/api/personal-externo/${encodeURIComponent(rut)}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
-        },
-        body: JSON.stringify({
-          rol,
-          disponibilidad,
-          fono,
-          experiencia,
-          datosDePago,
-          tallaDeRopa
-        })
-      }
-    );
-
-    const resultado = await respuesta.json();
-
-    if (!respuesta.ok || !resultado.success) {
-      throw new Error(
-        resultado.mensaje || 'No se pudo actualizar la ficha laboral.'
-      );
+    if (!personalSeleccionado) {
+      alert('Primero debes seleccionar un trabajador.');
+      return;
     }
 
-    // Actualizar el listado sin duplicar trabajadores
-    const actualizado = resultado.datos;
+    try {
+      const rut = personalSeleccionado.rut;
 
-    setPersonal((anterior) =>
-      anterior.map((persona) =>
-        persona.rut === rut ? actualizado : persona
-      )
-    );
+      // Solo enviamos antecedentes laborales, no datos de la cuenta
+      const {
+        rol,
+        disponibilidad,
+        fono,
+        experiencia,
+        datosDePago,
+        tallaDeRopa
+      } = formulario;
 
-    // Actualizar la tarjeta de detalles
-    setPersonalSeleccionado(actualizado);
+      const respuesta = await fetch(
+        `${API_URL}/api/personal-externo/${encodeURIComponent(rut)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+          },
+          body: JSON.stringify({
+            rol,
+            disponibilidad,
+            fono,
+            experiencia,
+            datosDePago,
+            tallaDeRopa
+          })
+        }
+      );
 
-    // Cerrar el modal solamente si se guardó correctamente
-    setMostrarModal(false);
+      const resultado = await respuesta.json();
 
-    alert('Ficha laboral actualizada correctamente.');
+      if (!respuesta.ok || !resultado.success) {
+        throw new Error(
+          resultado.mensaje || 'No se pudo actualizar la ficha laboral.'
+        );
+      }
 
-  } catch (error) {
-    console.error('Error al actualizar personal eventual:', error);
-    alert(error.message);
-  }
-};
+      // Actualizar el listado sin duplicar trabajadores
+      const actualizado = resultado.datos;
+
+      setPersonal((anterior) =>
+        anterior.map((persona) =>
+          persona.rut === rut ? actualizado : persona
+        )
+      );
+
+      // Actualizar la tarjeta de detalles
+      setPersonalSeleccionado(actualizado);
+
+      // Cerrar el modal solamente si se guardó correctamente
+      setMostrarModal(false);
+
+      alert('Ficha laboral actualizada correctamente.');
+
+    } catch (error) {
+      console.error('Error al actualizar personal eventual:', error);
+      alert(error.message);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
@@ -203,7 +203,7 @@ export default function PersonalPagina() {
                 fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
               }}
             >
-              Completar ficha laboral 
+              Completar ficha laboral
             </button>
           </div>
         </div>
@@ -270,57 +270,57 @@ export default function PersonalPagina() {
             <>
               <div>
                 <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
-                  {personalSeleccionado.usuario?.nombre || 'Sin nombre'}
+                  {personalSeleccionado.usuario?.nombre || personalSeleccionado.nombre || 'Sin nombre'}
                 </h2>
                 <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  gap: '18px 30px',
-                  fontSize: '16px',
-                  lineHeight: '1.5'
-                }}
-              >
-                <div>
-                  <strong>RUT:</strong>
-                  <div>{personalSeleccionado.rut}</div>
-                </div>
-
-                <div>
-                  <strong>Rol:</strong>
-                  <div>{personalSeleccionado.rol}</div>
-                </div>
-
-                <div>
-                  <strong>Teléfono:</strong>
-                  <div>{personalSeleccionado.fono || 'No especificado'}</div>
-                </div>
-
-                <div>
-                  <strong>Disponibilidad:</strong>
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: '18px 30px',
+                    fontSize: '16px',
+                    lineHeight: '1.5'
+                  }}
+                >
                   <div>
-                    {personalSeleccionado.disponibilidad || 'No especificada'}
+                    <strong>RUT:</strong>
+                    <div>{obtenerRut(personalSeleccionado)}</div>
                   </div>
-                </div>
 
-                <div>
-                  <strong>Talla de uniforme:</strong>
-                  <div>{personalSeleccionado.tallaDeRopa || 'No especificada'}</div>
-                </div>
-
-                <div>
-                  <strong>Evaluación de desempeño:</strong>
                   <div>
-                    {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
+                    <strong>Rol:</strong>
+                    <div>{obtenerRol(personalSeleccionado)}</div>
                   </div>
-                </div>
 
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <strong>Experiencia:</strong>
-                  <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
+                  <div>
+                    <strong>Teléfono:</strong>
+                    <div>{personalSeleccionado.fono || personalSeleccionado.telefono || 'No especificado'}</div>
+                  </div>
+
+                  <div>
+                    <strong>Disponibilidad:</strong>
+                    <div>
+                      {personalSeleccionado.disponibilidad || 'No especificada'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <strong>Talla de uniforme:</strong>
+                    <div>{personalSeleccionado.tallaDeRopa || 'No especificada'}</div>
+                  </div>
+
+                  <div>
+                    <strong>Evaluación de desempeño:</strong>
+                    <div>
+                      {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <strong>Experiencia:</strong>
+                    <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
               <div style={{
                 width: '90px',
@@ -348,7 +348,6 @@ export default function PersonalPagina() {
         personalSeleccionado={personalSeleccionado}
         onClose={() => setMostrarModal(false)}
         onGuardar={handleGuardarNuevoPersonal}
-
       />
     </div>
   );

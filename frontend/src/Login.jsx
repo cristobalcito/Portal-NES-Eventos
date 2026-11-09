@@ -17,7 +17,7 @@ export default function Login({ onLoginSuccess }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        // Enviamos tanto email como rut con el valor ingresado
+        // Enviamos tanto email como rut con el valor ingresado para mayor compatibilidad
         body: JSON.stringify({ 
           email: identificador, 
           rut: identificador, 

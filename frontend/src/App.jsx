@@ -5,7 +5,7 @@ import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
 import GestionUsuarios from './pages/GestionarUsuarioPage.jsx';
-import HorarioCompartidoPagina from './pages/HorarioCompartidoPagina.jsx'; // 👈 1. Importación agregada
+import HorarioCompartidoPagina from './pages/HorarioCompartidoPagina.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
@@ -33,21 +33,19 @@ function App() {
         setSeccionActual('/home');
     };
 
-    // Función para actualizar el usuario resguardando el ROL y RUT sin depender exclusivamente del correo antiguo
+    // Función para actualizar el usuario resguardando el ROL y RUT
     const handleUpdateUsuario = (nuevoUsuario) => {
         setUsuario((prevUsuario) => {
             if (!prevUsuario) return nuevoUsuario;
 
-            // 1. Mantener el ROL previo si la actualización no devuelve uno explícito
             const rolMantenido =
                 nuevoUsuario.rol ||
                 nuevoUsuario.Rol ||
                 nuevoUsuario.ROL ||
                 prevUsuario.rol ||
                 prevUsuario.Rol ||
-                'GERENTE_GENERAL'; // Rol por defecto/resguardo
+                'GERENTE_GENERAL';
 
-            // 2. Mantener el RUT previo si la respuesta no lo incluye
             const rutMantenido =
                 nuevoUsuario.rut ||
                 nuevoUsuario.Rut ||
@@ -64,7 +62,6 @@ function App() {
                 rut: rutMantenido,
             };
 
-            // Guardar inmediatamente en localStorage
             localStorage.setItem('usuario', JSON.stringify(usuarioActualizado));
             return usuarioActualizado;
         });
@@ -87,14 +84,13 @@ function App() {
         onUpdateUsuario: handleUpdateUsuario,
     };
 
-    // Determinar ROL priorizando las propiedades explícitas antes de cualquier fallback
+    // Determinar ROL y RUT con resguardos de nombres de propiedad
     const rolDetectado = 
         usuario.rol || 
         usuario.Rol || 
         usuario.ROL || 
         'GERENTE_GENERAL';
 
-    // Determinar RUT revisando variantes
     const rutDetectado = 
         usuario.rut || 
         usuario.Rut || 
@@ -108,19 +104,13 @@ function App() {
         switch (seccionActual) {
             case '/eventos':
                 return <GestionarEventos {...propsDeNavegacion} />;
-            case '/horario': // 👈 2. Caso agregado para renderizar la vista de Horario Compartido
+            case '/horario':
             case '/horario-compartido':
                 return <HorarioCompartidoPagina {...propsDeNavegacion} />;
             case '/personal':
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
-            case '/mantenciones':
-                return <MantencionesPagina {...propsDeNavegacion} />;
-            case '/arrendados':
-                return <EquiposArrendadosPagina {...propsDeNavegacion} />;
-            case '/estado-equipos':
-                return <EstadoEquiposPagina {...propsDeNavegacion} />;
             case '/usuarios':
                 if (rolDetectado !== 'GERENTE_GENERAL') {
                     return (
