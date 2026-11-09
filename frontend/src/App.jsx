@@ -4,11 +4,12 @@ import CatalogoPagina from './pages/CatalogoPagina.jsx';
 import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
+import HomePage from './pages/HomePage.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
 
 function App() {
     const [usuario, setUsuario] = useState(null);
-    const [seccionActual, setSeccionActual] = useState('/catalogo');
+    const [seccionActual, setSeccionActual] = useState('/home');
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -24,6 +25,11 @@ function App() {
         }
     }, []);
 
+    const handleLoginSuccess = (datosUsuario) => {
+        setUsuario(datosUsuario);
+        localStorage.setItem('usuario', JSON.stringify(datosUsuario));
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
@@ -31,7 +37,7 @@ function App() {
     };
 
     if (!usuario) {
-        return <Login onLoginSuccess={(user) => setUsuario(user)} />;
+        return <Login onLoginSuccess={handleLoginSuccess} />;
     }
 
     const propsDeNavegacion = {
@@ -49,16 +55,20 @@ function App() {
                 return <InventarioPage {...propsDeNavegacion} />;
             case '/home':
                 return (
-                    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-                        <h1>Portal NES Eventos</h1>
-                        <p>Hola, <strong>{usuario.nombre}</strong></p>
-                        <p>RUT: {usuario.rut}</p>
-                        <p>Email: {usuario.email}</p>
-                        <button onClick={handleLogout}>Cerrar Sesión</button>
-                    </div>
+                    <HomePage 
+                        usuario={usuario} 
+                        handleLogout={handleLogout} 
+                        {...propsDeNavegacion} 
+                    />
                 );
             default:
-                return <CatalogoPagina {...propsDeNavegacion} />;
+                return (
+                    <HomePage 
+                        usuario={usuario} 
+                        handleLogout={handleLogout} 
+                        {...propsDeNavegacion} 
+                    />
+                );
         }
     };
 

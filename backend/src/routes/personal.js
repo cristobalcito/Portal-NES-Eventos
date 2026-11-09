@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerPersonal, crearPersonal } = require('../controladores/personalControlador');
+const { obtenerPersonal, crearPersonal } = require('../controllers/personalControlador');
 
 router.get('/', obtenerPersonal);
 router.post('/', crearPersonal);

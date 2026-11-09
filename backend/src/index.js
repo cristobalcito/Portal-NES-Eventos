@@ -6,13 +6,16 @@ var logger = require('morgan');
 var cors = require('cors');
 require('dotenv').config();
 
-var indexRouter = require('./rutas/index');
-var usersRouter = require('./rutas/users');
-var authRouter = require('./rutas/auth');
-var clientesRouter = require('./rutas/clientes');
-var eventosRouter = require('./rutas/eventos');
-var inventarioRouter = require('./rutas/inventario');
-var personalRouter = require('./rutas/personal');
+var indexRouter = require('./routes/index');
+var usersRouter = require('./routes/users');
+var authRouter = require('./routes/auth');
+var clientesRouter = require('./routes/clientes');
+var eventosRouter = require('./routes/eventos');
+var inventarioRouter = require('./routes/inventario');
+var personalRouter = require('./routes/personal');
+
+// Importación corregida del router de dashboard
+var dashboardRouter = require('./routes/dashboard.js').default || require('./routes/dashboard.js');
 
 var app = express();
 
@@ -30,6 +33,7 @@ app.use('/api/clientes', clientesRouter);
 app.use('/api/eventos', eventosRouter);
 app.use('/api/inventario', inventarioRouter);
 app.use('/api/personal', personalRouter);
+app.use('/api/dashboard', dashboardRouter); // Coincide con la variable declarada arriba
 
 app.use(function(req, res, next) {
   next(createError(404));

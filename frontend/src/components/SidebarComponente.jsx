@@ -1,6 +1,6 @@
 // frontend/src/components/SidebarComponente.jsx
 import React from 'react';
-import { obtenerEstiloBoton } from '../servicios/sidebarServicio.js';
+import { obtenerEstiloBoton } from '../services/sidebarServicio.js';
 
 export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar }) {
   const menuItems = [

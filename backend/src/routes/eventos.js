@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { obtenerEventos } = require('../controladores/eventosControlador');
+const { obtenerEventos } = require('../controllers/eventosControlador');
 
 router.get('/', obtenerEventos);
 
