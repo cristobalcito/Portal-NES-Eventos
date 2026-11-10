@@ -10,6 +10,7 @@ import Sidebar from './components/SidebarComponente.jsx';
 import EstadoEquiposPagina from './pages/EstadoEquiposPagina.jsx';
 import MantencionesPagina from './pages/MantencionesPagina.jsx';
 import EquiposArrendadosPagina from './pages/EquiposArrendadosPagina.jsx';
+import CampanaAlertas from './components/CampanaAlertas.jsx';
 
 function App() {
     const [usuario, setUsuario] = useState(null);
@@ -172,7 +173,11 @@ function App() {
     return (
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
             <Sidebar {...propsDeNavegacion} usuario={{ ...usuario, rol: rolDetectado, rut: rutDetectado }} />
-            <main style={{ flex: 1 }}>
+            <main style={{ flex: 1, minWidth: 0 }}>
+                {['GERENTE_GENERAL', 'PERSONAL_OPERACIONES'].includes(rolDetectado) && (
+                    <CampanaAlertas />
+                )}
+
                 {renderVistaCentral()}
             </main>
         </div>
