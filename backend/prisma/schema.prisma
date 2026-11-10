@@ -108,6 +108,7 @@ model PlanEspecifico {
   planBase          PlanBase?         @relation(fields: [planBaseId], references: [idPL])
   horario           Horario?
   equiposArrendados EquipoArrendado[]
+  alertas           Alerta[]
 }
 
 model Horario {
@@ -135,6 +136,13 @@ model Alerta {
   contenido  String
   clienteRut String?
   cliente    Cliente? @relation(fields: [clienteRut], references: [rut])
+  planEspecificoId Int?
+  planEspecifico   PlanEspecifico? @relation(fields: [planEspecificoId], references: [idPE], onDelete: Cascade)
+  tipo             String          @default("GENERAL")
+  leida            Boolean         @default(false)
+  creadaEn         DateTime        @default(now())
+
+  @@unique([planEspecificoId, tipo])
 }
 
 model Inventario {
