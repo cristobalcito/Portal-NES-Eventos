@@ -10,8 +10,7 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar, usuar
     { nombre: 'Estado de equipos', ruta: '/estado-equipos' },
     { nombre: 'Mantenciones', ruta: '/mantenciones' },
     { nombre: 'Equipos arrendados', ruta: '/arrendados' },
-    { nombre: 'Catálogo', ruta: '/catalogo' },
-    { nombre: 'Horario compartido', ruta: '/horario-compartido' }
+    { nombre: 'Catálogo', ruta: '/catalogo' }
   ];
 
   // Si el usuario logueado es GERENTE_GENERAL, agregamos la opción exclusiva
