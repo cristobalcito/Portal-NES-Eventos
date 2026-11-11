@@ -3,15 +3,22 @@ import ModalPersonalEventual from '../components/ModalPersonalEventual';
 
 export default function PersonalPagina() {
   const [personal, setPersonal] = useState([]);
+  const [eventos, setEventos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [personalSeleccionado, setPersonalSeleccionado] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [mostrarModal, setMostrarModal] = useState(false);
 
+  // Estados modal asignacion RF7
+  const [mostrarModalAsignar, setMostrarModalAsignar] = useState(false);
+  const [eventoSeleccionadoId, setEventoSeleccionadoId] = useState('');
+  const [rolAsignadoInput, setRolAsignadoInput] = useState('Operativo');
+  const [guardandoAsignacion, setGuardandoAsignacion] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState('');
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  // Helper para obtener el RUT sin importar la estructura devuelta
   const obtenerRut = (p) => {
     if (!p) return 'No especificado';
     return (
@@ -25,7 +32,6 @@ export default function PersonalPagina() {
     );
   };
 
-  // Helper para obtener el Rol
   const obtenerRol = (p) => {
     if (!p) return 'No especificado';
     return (
@@ -38,10 +44,9 @@ export default function PersonalPagina() {
     );
   };
 
-  // Consultar personal a la Base de Datos
   const cargarPersonal = () => {
     setCargando(true);
-    fetch(`${API_URL}/api/personal-externo`, {
+    fetch(`${API_URL}/api/personal`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
       },
@@ -51,7 +56,7 @@ export default function PersonalPagina() {
         if (!respuesta.ok) {
           throw new Error(datos.error || 'No se pudo cargar el personal.');
         }
-        return Array.isArray(datos.datos) ? datos.datos : [];
+        return Array.isArray(datos) ? datos : (datos.datos || []);
       })
       .then((datos) => {
         setPersonal(datos);
@@ -67,8 +72,24 @@ export default function PersonalPagina() {
       .finally(() => setCargando(false));
   };
 
+  const cargarEventos = () => {
+    fetch(`${API_URL}/api/eventos`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+      },
+    })
+      .then(async (res) => {
+        if (!res.ok) return [];
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.datos || []);
+      })
+      .then((lista) => setEventos(lista))
+      .catch(() => setEventos([]));
+  };
+
   useEffect(() => {
     cargarPersonal();
+    cargarEventos();
   }, []);
 
   const personalFiltrado = personal.filter((p) => {
@@ -80,20 +101,63 @@ export default function PersonalPagina() {
     return nombre.includes(termino) || rol.includes(termino) || rut.includes(termino);
   });
 
-  // ACCIÓN 1: Abrir modal para editar
   const handleEditar = (p) => {
     setPersonalSeleccionado(p);
     setMostrarModal(true);
   };
 
-  // ACCIÓN 2: Eliminar de la Base de Datos
+  const handleAbrirAsignar = (p) => {
+    setPersonalSeleccionado(p);
+    setRolAsignadoInput(p.rol || 'Operativo');
+    setEventoSeleccionadoId('');
+    setMostrarModalAsignar(true);
+  };
+
+  const handleConfirmarAsignacion = async (e) => {
+    e.preventDefault();
+    if (!personalSeleccionado || !eventoSeleccionadoId) {
+      alert('Selecciona un evento para realizar la asignacion.');
+      return;
+    }
+
+    try {
+      setGuardandoAsignacion(true);
+      const rutTrabajador = obtenerRut(personalSeleccionado);
+      const respuesta = await fetch(`${API_URL}/api/personal/asignar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
+        },
+        body: JSON.stringify({
+          rut: rutTrabajador,
+          idPE: eventoSeleccionadoId,
+          rolAsignado: rolAsignadoInput
+        })
+      });
+
+      const resultado = await respuesta.json();
+      if (!respuesta.ok) {
+        throw new Error(resultado.error || resultado.mensaje || 'Error al asignar el personal.');
+      }
+
+      setMensajeExito(resultado.mensaje || 'Personal asignado correctamente.');
+      setTimeout(() => setMensajeExito(''), 4000);
+      setMostrarModalAsignar(false);
+      cargarPersonal();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGuardandoAsignacion(false);
+    }
+  };
+
   const handleEliminar = async (p) => {
     const rutAEliminar = obtenerRut(p);
     const nombre = p.nombre || p.Nombre || p.usuario?.nombre || 'este trabajador';
-
     const usuarioSesion = JSON.parse(localStorage.getItem('usuario') || '{}');
 
-    if (!window.confirm(`¿Está seguro de que desea eliminar a ${nombre} (RUT: ${rutAEliminar})?`)) {
+    if (!window.confirm(`Esta seguro de que desea eliminar a ${nombre} (RUT: ${rutAEliminar})?`)) {
       return;
     }
 
@@ -108,27 +172,23 @@ export default function PersonalPagina() {
       });
 
       const resultado = await respuesta.json();
-
       if (!respuesta.ok || (!resultado.exito && !resultado.success)) {
         throw new Error(resultado.mensaje || 'Error al eliminar el trabajador.');
       }
 
       alert('Trabajador eliminado correctamente de la base de datos.');
-
       const nuevaLista = personal.filter((item) => obtenerRut(item) !== rutAEliminar);
       setPersonal(nuevaLista);
 
       if (personalSeleccionado && obtenerRut(personalSeleccionado) === rutAEliminar) {
         setPersonalSeleccionado(nuevaLista[0] || null);
       }
-
     } catch (err) {
       console.error('Error al eliminar personal:', err);
       alert(err.message);
     }
   };
 
-  // ACCIÓN 3: Guardar Edición en la Base de Datos
   const handleGuardarNuevoPersonal = async (formulario) => {
     if (!personalSeleccionado) {
       alert('Primero debes seleccionar un trabajador.');
@@ -153,15 +213,13 @@ export default function PersonalPagina() {
       );
 
       const resultado = await respuesta.json();
-
       if (!respuesta.ok) {
         throw new Error(resultado.mensaje || resultado.error || 'Error al actualizar la ficha.');
       }
 
-      alert('Ficha actualizada con éxito.');
+      alert('Ficha actualizada con exito.');
       cargarPersonal();
       setMostrarModal(false);
-
     } catch (error) {
       console.error('Error al actualizar personal eventual:', error);
       alert(error.message);
@@ -173,7 +231,7 @@ export default function PersonalPagina() {
       
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>
         
-        {/* Barra superior de búsqueda y botón global de editar */}
+        {/* Barra superior */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           
           <div style={{ 
@@ -186,7 +244,6 @@ export default function PersonalPagina() {
             padding: '10px 20px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           }}>
-            <span style={{ fontSize: '18px', marginRight: '10px' }}>🔍</span>
             <input 
               type="text" 
               placeholder="Buscar persona..." 
@@ -202,20 +259,20 @@ export default function PersonalPagina() {
                 fontSize: '16px'
               }} 
             />
-            {busqueda ? (
-              <span 
+            {busqueda && (
+              <button 
+                type="button"
                 onClick={() => setBusqueda('')} 
-                style={{ fontSize: '16px', marginLeft: '10px', cursor: 'pointer', color: '#888' }}
+                style={{ background: 'none', border: 'none', fontSize: '14px', cursor: 'pointer', color: '#888' }}
               >
-                ✖
-              </span>
-            ) : (
-              <span style={{ fontSize: '20px', marginLeft: '10px', cursor: 'pointer' }}>⚲</span>
+                Limpiar
+              </button>
             )}
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginLeft: '20px' }}>
             <button 
+              type="button"
               onClick={() => {
                 if (personalSeleccionado) {
                   setMostrarModal(true);
@@ -233,6 +290,12 @@ export default function PersonalPagina() {
             </button>
           </div>
         </div>
+
+        {mensajeExito && (
+          <div style={{ backgroundColor: '#d1e7dd', color: '#0f5132', padding: '12px 20px', borderRadius: '15px', marginBottom: '15px', fontWeight: 'bold' }}>
+            {mensajeExito}
+          </div>
+        )}
 
         {/* Lista de Personal */}
         <div style={{ 
@@ -270,20 +333,29 @@ export default function PersonalPagina() {
                 }}
               >
                 <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                  {p.nombre || p.Nombre || p.usuario?.nombre || 'Sin nombre'} | {obtenerRol(p)}
+                  {p.nombre || p.Nombre || p.usuario?.nombre || 'Sin nombre'} | {obtenerRol(p)} | {p.estado || p.disponibilidad || 'Disponible'}
                 </span>
                 
-                {/* Botones de acción siempre activos */}
-                <div style={{ display: 'flex', gap: '15px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    title="Asignar a evento (RF7)"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAbrirAsignar(p);
+                    }} 
+                    style={{ backgroundColor: 'white', color: '#1e40af', border: 'none', borderRadius: '15px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                  >
+                    Asignar a Evento
+                  </button>
                   <button 
                     title="Editar ficha"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleEditar(p);
                     }} 
-                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                    style={{ backgroundColor: 'white', color: '#523354', border: 'none', borderRadius: '15px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                   >
-                    📝
+                    Editar
                   </button>
                   <button 
                     title="Eliminar usuario"
@@ -291,9 +363,9 @@ export default function PersonalPagina() {
                       e.stopPropagation();
                       handleEliminar(p);
                     }} 
-                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}
+                    style={{ backgroundColor: 'white', color: '#c0392b', border: 'none', borderRadius: '15px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                   >
-                    🗑️
+                    Eliminar
                   </button>
                 </div>
               </div>
@@ -313,75 +385,69 @@ export default function PersonalPagina() {
           alignItems: 'center'
         }}>
           {personalSeleccionado ? (
-            <>
-              <div>
+            <div style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
                   {personalSeleccionado.nombre || personalSeleccionado.Nombre || personalSeleccionado.usuario?.nombre || 'Sin nombre'}
                 </h2>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                    gap: '18px 30px',
-                    fontSize: '16px',
-                    lineHeight: '1.5'
-                  }}
+                <button
+                  type="button"
+                  onClick={() => handleAbrirAsignar(personalSeleccionado)}
+                  style={{ backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  <div>
-                    <strong>RUT:</strong>
-                    <div>{obtenerRut(personalSeleccionado)}</div>
-                  </div>
+                  Asignar a Evento (RF7)
+                </button>
+              </div>
 
-                  <div>
-                    <strong>Rol:</strong>
-                    <div>{obtenerRol(personalSeleccionado)}</div>
-                  </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '18px 30px',
+                  fontSize: '16px',
+                  lineHeight: '1.5'
+                }}
+              >
+                <div>
+                  <strong>RUT:</strong>
+                  <div>{obtenerRut(personalSeleccionado)}</div>
+                </div>
 
-                  <div>
-                    <strong>Teléfono:</strong>
-                    <div>{personalSeleccionado.fono || personalSeleccionado.telefono || 'No especificado'}</div>
-                  </div>
+                <div>
+                  <strong>Rol Base:</strong>
+                  <div>{obtenerRol(personalSeleccionado)}</div>
+                </div>
 
-                  <div>
-                    <strong>Disponibilidad:</strong>
-                    <div>
-                      {personalSeleccionado.disponibilidad || 'No especificada'}
-                    </div>
-                  </div>
+                <div>
+                  <strong>Telefono:</strong>
+                  <div>{personalSeleccionado.fono || personalSeleccionado.telefono || 'No especificado'}</div>
+                </div>
 
+                <div>
+                  <strong>Estado / Disponibilidad:</strong>
                   <div>
-                    <strong>Talla de uniforme:</strong>
-                    <div>{personalSeleccionado.tallaDeRopa || 'No especificada'}</div>
-                  </div>
-
-                  <div>
-                    <strong>Evaluación de desempeño:</strong>
-                    <div>
-                      {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
-                    </div>
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <strong>Experiencia:</strong>
-                    <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
+                    {personalSeleccionado.estado || personalSeleccionado.disponibilidad || 'No especificada'}
                   </div>
                 </div>
-              </div>
 
-              <div style={{
-                width: '90px',
-                height: '90px',
-                borderRadius: '50%',
-                border: '3px solid black',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '50px',
-                marginRight: '20px'
-              }}>
-                👤
+                <div>
+                  <strong>Talla de uniforme:</strong>
+                  <div>{personalSeleccionado.tallaDeRopa || 'No especificada'}</div>
+                </div>
+
+                <div>
+                  <strong>Evaluacion de desempeno:</strong>
+                  <div>
+                    {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
+                  </div>
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <strong>Experiencia:</strong>
+                  <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
+                </div>
               </div>
-            </>
+            </div>
           ) : (
             <p style={{ color: '#666', fontStyle: 'italic' }}>Selecciona una persona para ver sus detalles</p>
           )}
@@ -395,6 +461,88 @@ export default function PersonalPagina() {
         onClose={() => setMostrarModal(false)}
         onGuardar={handleGuardarNuevoPersonal}
       />
+
+      {/* Modal Asignar a Evento RF7 */}
+      {mostrarModalAsignar && personalSeleccionado && (
+        <div
+          onClick={() => !guardandoAsignacion && setMostrarModalAsignar(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white', borderRadius: '20px', width: '90%', maxWidth: '450px',
+              padding: '25px 30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', boxSizing: 'border-box'
+            }}
+          >
+            <h2 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: '22px' }}>Asignar a Evento (RF7)</h2>
+            <p style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#666' }}>
+              Trabajador: <strong>{personalSeleccionado.nombre || obtenerRut(personalSeleccionado)}</strong>
+            </p>
+
+            <form onSubmit={handleConfirmarAsignacion}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Seleccionar Evento:
+                </label>
+                <select
+                  value={eventoSeleccionadoId}
+                  onChange={(e) => setEventoSeleccionadoId(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  required
+                >
+                  <option value="">-- Selecciona un evento --</option>
+                  {eventos.map((ev) => (
+                    <option key={ev.idPE || ev.id} value={ev.idPE || ev.id}>
+                      {ev.descripcion} ({ev.fecha ? new Date(ev.fecha).toLocaleDateString() : 'Sin fecha'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Rol en el Evento:
+                </label>
+                <input
+                  type="text"
+                  value={rolAsignadoInput}
+                  onChange={(e) => setRolAsignadoInput(e.target.value)}
+                  placeholder="Ej. Garzon, Chofer, Tecnico"
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalAsignar(false)}
+                  disabled={guardandoAsignacion}
+                  style={{ backgroundColor: '#aaa', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoAsignacion}
+                  style={{
+                    backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '10px 25px',
+                    borderRadius: '20px', fontWeight: 'bold', cursor: guardandoAsignacion ? 'wait' : 'pointer',
+                    opacity: guardandoAsignacion ? 0.7 : 1
+                  }}
+                >
+                  {guardandoAsignacion ? 'Asignando...' : 'Confirmar Asignacion'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
