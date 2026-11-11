@@ -4,8 +4,6 @@ import {
   API_URL, pedir, formatearFecha, formatearFechaHora, formatearPesos, estilos, Etiqueta
 } from '../servicios/inventarioLogisticaServicio.jsx';
 
-// RU-4: registrar equipamiento arrendado a terceros y vincularlo a un evento.
-// Además destaca los equipos cuya devolución vence en menos de 24 horas o ya está atrasada.
 export default function EquiposArrendadosPagina() {
   const [equipos, setEquipos] = useState([]);
   const [eventos, setEventos] = useState([]);
@@ -15,7 +13,7 @@ export default function EquiposArrendadosPagina() {
   const [errorCarga, setErrorCarga] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [accionPendiente, setAccionPendiente] = useState(null); // { tipo: 'devolver' | 'eliminar', equipo }
+  const [accionPendiente, setAccionPendiente] = useState(null);
   const [procesando, setProcesando] = useState(false);
   const [errorAccion, setErrorAccion] = useState('');
 
@@ -78,16 +76,17 @@ export default function EquiposArrendadosPagina() {
   const porVencer = equipos.filter((e) => e.estadoPlazo === 'por vencer');
   const atrasados = equipos.filter((e) => e.estadoPlazo === 'atrasado');
 
-  // Filtro por estado (botones) y por texto (buscador)
   const cumpleFiltro = (e) => {
     if (filtro === 'activos') return e.estado !== 'devuelto';
     if (filtro === 'devueltos') return e.estado === 'devuelto';
-    return true; // "todos"
+    return true;
   };
+
   const cumpleBusqueda = (e) => {
     const texto = `${e.nombreEquipo} ${e.codigoEquipo} ${e.proveedor.nombre} ${e.evento.descripcion}`.toLowerCase();
     return texto.includes(busqueda.toLowerCase());
   };
+
   const visibles = equipos.filter((e) => cumpleFiltro(e) && cumpleBusqueda(e));
 
   const etiquetaPlazo = (e) => {
@@ -118,12 +117,12 @@ export default function EquiposArrendadosPagina() {
           <h1 style={{ margin: 0, color: '#523354', fontSize: '28px' }}>Equipos arrendados a terceros</h1>
           <p style={{ margin: '4px 0 0', color: '#666' }}>Equipamiento externo subcontratado para eventos.</p>
         </div>
-        <button onClick={() => setModalAbierto(true)} style={estilos.botonGrande}>Registrar equipo arrendado</button>
+        <button onClick={() => setModalAbierto(true)} style={estilos.botonGrande}>Registrar equipo arrendado (RF10)</button>
       </div>
 
       {atrasados.length > 0 && (
         <div style={{ ...estilos.alerta, backgroundColor: '#fdecea', color: '#b3261e', borderColor: '#f5b5ae' }}>
-          Devolución atrasada: {atrasados.map((e) => `${e.nombreEquipo} (${e.proveedor.nombre})`).join(', ')}. Pueden aplicar multas del proveedor.
+          Devolucion atrasada: {atrasados.map((e) => `${e.nombreEquipo} (${e.proveedor.nombre})`).join(', ')}. Pueden aplicar multas del proveedor.
         </div>
       )}
       {porVencer.length > 0 && (
@@ -154,7 +153,7 @@ export default function EquiposArrendadosPagina() {
               <th style={estilos.th}>Proveedor</th>
               <th style={estilos.th}>Evento</th>
               <th style={estilos.th}>Retiro</th>
-              <th style={estilos.th}>Devolución</th>
+              <th style={estilos.th}>Devolucion</th>
               <th style={estilos.th}>Costo</th>
               <th style={estilos.th}>Estado</th>
               <th style={estilos.th}>Acciones</th>
@@ -191,7 +190,7 @@ export default function EquiposArrendadosPagina() {
                   <td style={estilos.td}>{etiquetaPlazo(e)}</td>
                   <td style={{ ...estilos.td, whiteSpace: 'nowrap' }}>
                     <a href={`${API_URL}/api/equipos-arrendados/${e.id}/garantia`} target="_blank" rel="noreferrer"
-                      style={{ ...estilos.botonTabla, textDecoration: 'none', display: 'inline-block' }}>Garantía</a>
+                      style={{ ...estilos.botonTabla, textDecoration: 'none', display: 'inline-block' }}>Garantia</a>
                     {e.estado !== 'devuelto' && (
                       <button style={{ ...estilos.botonTabla, marginLeft: '6px' }}
                         onClick={() => { setErrorAccion(''); setAccionPendiente({ tipo: 'devolver', equipo: e }); }}>Devuelto</button>
@@ -213,24 +212,23 @@ export default function EquiposArrendadosPagina() {
         onGuardar={registrarEquipo}
       />
 
-      {/* Confirmación de devolver o eliminar */}
       {accionPendiente && (
         <div style={estilos.fondoModal} onClick={() => !procesando && setAccionPendiente(null)}>
           <div style={{ ...estilos.cajaModal, maxWidth: '430px' }} onClick={(ev) => ev.stopPropagation()}>
             <h2 style={{ ...estilos.tituloModal, marginBottom: '10px' }}>
-              {accionPendiente.tipo === 'devolver' ? 'Confirmar devolución' : 'Eliminar registro'}
+              {accionPendiente.tipo === 'devolver' ? 'Confirmar devolucion' : 'Eliminar registro'}
             </h2>
             <p style={{ margin: '0 0 15px', fontSize: '15px', lineHeight: 1.5 }}>
               {accionPendiente.tipo === 'devolver'
-                ? <>¿Confirmas que <strong>{accionPendiente.equipo.nombreEquipo}</strong> fue devuelto a {accionPendiente.equipo.proveedor.nombre}?</>
-                : <>¿Eliminar el registro de <strong>{accionPendiente.equipo.nombreEquipo}</strong>? Se descontarán {formatearPesos(accionPendiente.equipo.costo)} del presupuesto del evento.</>}
+                ? <>Confirma que <strong>{accionPendiente.equipo.nombreEquipo}</strong> fue devuelto a {accionPendiente.equipo.proveedor.nombre}?</>
+                : <>Desea eliminar el registro de <strong>{accionPendiente.equipo.nombreEquipo}</strong>? Se descontaran {formatearPesos(accionPendiente.equipo.costo)} del presupuesto del evento.</>}
             </p>
             {errorAccion && <p style={{ ...estilos.error, marginBottom: '15px' }}>{errorAccion}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setAccionPendiente(null)} disabled={procesando} style={estilos.botonSecundario}>Cancelar</button>
               <button onClick={confirmarAccion} disabled={procesando}
                 style={{ ...estilos.botonPrimario, backgroundColor: accionPendiente.tipo === 'eliminar' ? '#c0392b' : '#2e7d32', opacity: procesando ? 0.7 : 1 }}>
-                {procesando ? 'Guardando...' : accionPendiente.tipo === 'devolver' ? 'Sí, devuelto' : 'Eliminar'}
+                {procesando ? 'Guardando...' : accionPendiente.tipo === 'devolver' ? 'Si, devuelto' : 'Eliminar'}
               </button>
             </div>
           </div>
