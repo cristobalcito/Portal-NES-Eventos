@@ -1,22 +1,16 @@
 const prisma = require('../lib/prisma');
 const { obtenerRolUsuario, puedeFinalizarMantencion } = require('../servicios/permisosServicio');
 
-// Datos del equipo que se incluyen junto a cada mantención
 const datosEquipo = { inventario: { select: { id: true, producto: true, marca: true } } };
 
-// Revisa si un texto tiene contenido
 const esTextoValido = (valor) => typeof valor === 'string' && valor.trim() !== '';
-
-// Revisa si una fecha se puede leer
 const esFechaValida = (valor) => valor && !isNaN(new Date(valor).getTime());
 
-// Una mantención está atrasada si sigue en mantención y ya pasó la fecha de retorno
 const agregarAtraso = (mantencion) => ({
   ...mantencion,
   atrasada: mantencion.estado === 'en mantención' && new Date() > new Date(mantencion.fechaRetornoEstimada)
 });
 
-// Valida los datos del servicio técnico. Devuelve una lista de errores (vacía si todo está bien).
 const validarDatos = (datos) => {
   const errores = [];
 
@@ -37,7 +31,7 @@ const validarDatos = (datos) => {
   return errores;
 };
 
-// GET /api/mantenciones -> lista todas las mantenciones
+// GET /api/mantenciones
 const obtenerMantenciones = async (req, res) => {
   try {
     const mantenciones = await prisma.mantencion.findMany({
@@ -51,7 +45,7 @@ const obtenerMantenciones = async (req, res) => {
   }
 };
 
-// GET /api/mantenciones/:id -> ficha de una mantención (RU-2)
+// GET /api/mantenciones/:id
 const obtenerMantencion = async (req, res) => {
   try {
     const mantencion = await prisma.mantencion.findUnique({
@@ -70,13 +64,12 @@ const obtenerMantencion = async (req, res) => {
   }
 };
 
-// POST /api/mantenciones -> envía unidades de un equipo a mantención
+// POST /api/mantenciones (RF9)
 const registrarMantencion = async (req, res) => {
   try {
     const inventarioId = Number(req.body.inventarioId);
     const cantidad = Number(req.body.cantidad);
 
-    // 1. Validar los datos del formulario
     const errores = validarDatos(req.body);
     if (!inventarioId) errores.push('Debes seleccionar un equipo.');
     if (!Number.isInteger(cantidad) || cantidad <= 0) errores.push('La cantidad debe ser un entero mayor a 0.');
@@ -85,7 +78,6 @@ const registrarMantencion = async (req, res) => {
       return res.status(400).json({ mensaje: errores.join(' ') });
     }
 
-    // 2. Revisar que el equipo exista y tenga unidades disponibles
     const equipo = await prisma.inventario.findUnique({ where: { id: inventarioId } });
 
     if (!equipo) {
@@ -97,7 +89,6 @@ const registrarMantencion = async (req, res) => {
       });
     }
 
-    // 3. Mover las unidades de "disponible" a "mantención" en el inventario
     await prisma.inventario.update({
       where: { id: inventarioId },
       data: {
@@ -106,7 +97,6 @@ const registrarMantencion = async (req, res) => {
       }
     });
 
-    // 4. Guardar la mantención
     const nuevaMantencion = await prisma.mantencion.create({
       data: {
         inventarioId,
@@ -128,12 +118,11 @@ const registrarMantencion = async (req, res) => {
   }
 };
 
-// PUT /api/mantenciones/:id -> edita los datos del servicio técnico
+// PUT /api/mantenciones/:id
 const actualizarMantencion = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
-    // 1. Revisar que exista y que siga en mantención
     const mantencion = await prisma.mantencion.findUnique({ where: { id } });
 
     if (!mantencion) {
@@ -143,13 +132,11 @@ const actualizarMantencion = async (req, res) => {
       return res.status(400).json({ mensaje: 'Solo se pueden editar equipos que siguen en mantención.' });
     }
 
-    // 2. Validar los datos nuevos
     const errores = validarDatos(req.body);
     if (errores.length > 0) {
       return res.status(400).json({ mensaje: errores.join(' ') });
     }
 
-    // 3. Guardar los cambios
     const mantencionEditada = await prisma.mantencion.update({
       where: { id },
       data: {
@@ -170,12 +157,11 @@ const actualizarMantencion = async (req, res) => {
   }
 };
 
-// PATCH /api/mantenciones/:id/finalizar -> el equipo reparado vuelve a estar disponible (RU-3)
+// PATCH /api/mantenciones/:id/finalizar (RF9 - Alta de equipo)
 const finalizarMantencion = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
-    // 1. Revisar permisos: solo el Gerente General o el Jefe de Operaciones
     const usuario = await obtenerRolUsuario(req.usuario.rut);
     if (!puedeFinalizarMantencion(usuario)) {
       return res.status(403).json({
@@ -183,7 +169,6 @@ const finalizarMantencion = async (req, res) => {
       });
     }
 
-    // 2. Revisar que la mantención exista y no esté finalizada
     const mantencion = await prisma.mantencion.findUnique({ where: { id } });
 
     if (!mantencion) {
@@ -193,7 +178,6 @@ const finalizarMantencion = async (req, res) => {
       return res.status(400).json({ mensaje: 'Esta mantención ya fue finalizada.' });
     }
 
-    // 3. Devolver las unidades de "mantención" a "disponible" en el inventario
     const equipo = await prisma.inventario.findUnique({ where: { id: mantencion.inventarioId } });
 
     await prisma.inventario.update({
@@ -204,7 +188,6 @@ const finalizarMantencion = async (req, res) => {
       }
     });
 
-    // 4. Marcar la mantención como finalizada
     const mantencionFinalizada = await prisma.mantencion.update({
       where: { id },
       data: {

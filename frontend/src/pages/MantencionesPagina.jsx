@@ -5,8 +5,6 @@ import {
   formatearFecha, formatearPesos, estilos, Etiqueta
 } from '../servicios/inventarioLogisticaServicio.jsx';
 
-// RU-2: consultar y gestionar la mantención de equipos.
-// RU-3: el Gerente General o el Jefe de Operaciones marcan el equipo reparado como disponible.
 export default function MantencionesPagina() {
   const [mantenciones, setMantenciones] = useState([]);
   const [equipos, setEquipos] = useState([]);
@@ -25,7 +23,6 @@ export default function MantencionesPagina() {
 
   const usuario = obtenerUsuarioSesion();
   const rol = usuario && usuario.rol;
-  // El botón se muestra a Gerente y Personal de Operaciones; el backend verifica que sea el Jefe de Operaciones
   const puedeVerBotonRetorno = rol === 'GERENTE_GENERAL' || rol === 'PERSONAL_OPERACIONES';
 
   const cargarDatos = async () => {
@@ -54,7 +51,6 @@ export default function MantencionesPagina() {
     setTimeout(() => setMensajeExito(''), 3500);
   };
 
-  // Registrar o editar (según si hay una mantención en edición)
   const guardarMantencion = async (datos) => {
     if (mantencionEditando) {
       await pedir(`/api/mantenciones/${mantencionEditando.id}`, {
@@ -113,16 +109,17 @@ export default function MantencionesPagina() {
 
   const atrasadas = mantenciones.filter((m) => m.atrasada);
 
-  // Filtro por estado (botones) y por texto (buscador)
   const cumpleFiltro = (m) => {
     if (filtro === 'activas') return m.estado === 'en mantención';
     if (filtro === 'finalizadas') return m.estado === 'finalizada';
-    return true; // "todas"
+    return true;
   };
+
   const cumpleBusqueda = (m) => {
     const texto = `${m.inventario.producto} ${m.falla} ${m.taller || ''}`.toLowerCase();
     return texto.includes(busqueda.toLowerCase());
   };
+
   const visibles = mantenciones.filter((m) => cumpleFiltro(m) && cumpleBusqueda(m));
 
   const etiquetaEstado = (m) => {
@@ -150,7 +147,7 @@ export default function MantencionesPagina() {
           <h1 style={{ margin: 0, color: '#523354', fontSize: '28px' }}>Mantención de equipos</h1>
           <p style={{ margin: '4px 0 0', color: '#666' }}>Equipos enviados a servicio técnico y su historial.</p>
         </div>
-        <button onClick={abrirRegistrar} style={estilos.botonGrande}>Enviar equipo a mantención</button>
+        <button onClick={abrirRegistrar} style={estilos.botonGrande}>Enviar equipo a mantención (RF9)</button>
       </div>
 
       {atrasadas.length > 0 && (
@@ -231,13 +228,12 @@ export default function MantencionesPagina() {
         onGuardar={guardarMantencion}
       />
 
-      {/* Ficha técnica de la mantención (RU-2) */}
       {fichaAbierta && (
         <div style={estilos.fondoModal} onClick={() => !finalizando && setFichaAbierta(null)}>
           <div style={estilos.cajaModal} onClick={(e) => e.stopPropagation()}>
             <div style={estilos.encabezadoModal}>
               <h2 style={estilos.tituloModal}>Ficha de mantención</h2>
-              <button type="button" onClick={() => setFichaAbierta(null)} style={estilos.botonCerrar}>×</button>
+              <button type="button" onClick={() => setFichaAbierta(null)} style={estilos.botonCerrar}>x</button>
             </div>
 
             <h3 style={{ margin: '0 0 6px', fontSize: '20px' }}>
