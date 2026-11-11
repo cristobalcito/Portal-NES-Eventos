@@ -102,6 +102,7 @@ model PlanEspecifico {
   descripcion       String
   lugar             String
   numPersonas       Int
+  personasConfirmadas Int @default(0)
   personal          String
   fecha             DateTime
   planBaseId        Int?

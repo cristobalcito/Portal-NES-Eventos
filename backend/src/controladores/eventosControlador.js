@@ -3,29 +3,21 @@ const reglasEventos = require('../servicios/reglasEventosServicio');
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
-// Da formato a un evento para el frontend (agrega "id" como alias de idPE)
 const formatearEvento = (evento) => ({
   ...evento,
   id: evento.idPE
 });
 
-// Valida que un texto venga con contenido
 const esTextoValido = (valor) => typeof valor === 'string' && valor.trim().length > 0;
-
-// Valida que una fecha se pueda interpretar
 const esFechaValida = (valor) => valor && !Number.isNaN(new Date(valor).getTime());
 
-// Compara solo el día (sin la hora) de dos fechas
 const mismoDia = (fechaA, fechaB) =>
   new Date(fechaA).toISOString().slice(0, 10) === new Date(fechaB).toISOString().slice(0, 10);
 
-// Días que faltan para una fecha (negativo si ya pasó)
 const calcularDiasRestantes = (fecha) => Math.ceil((new Date(fecha) - new Date()) / MS_POR_DIA);
 
-// Valida los datos que vienen del formulario y los deja listos para Prisma.
-// Se usa tanto para crear como para editar.
 const validarDatosEvento = (body) => {
-  const { descripcion, lugar, fecha, numPersonas, personal, costoTotal, horario } = body;
+  const { descripcion, lugar, fecha, numPersonas, personal, costoTotal, horario, asistentesConfirmados } = body;
   const errores = [];
 
   if (!esTextoValido(descripcion)) errores.push('La descripción es obligatoria.');
@@ -37,12 +29,19 @@ const validarDatosEvento = (body) => {
     errores.push('El número de personas debe ser un entero mayor a 0.');
   }
 
+  const confirmados = asistentesConfirmados !== undefined ? Number(asistentesConfirmados) : 0;
+  if (asistentesConfirmados !== undefined && (!Number.isInteger(confirmados) || confirmados < 0)) {
+    errores.push('El número de asistentes confirmados debe ser un entero mayor o igual a 0.');
+  }
+  if (confirmados > personas) {
+    errores.push('El número de asistentes confirmados no puede superar el total de invitados.');
+  }
+
   const costo = Number(costoTotal);
   if (costoTotal === '' || costoTotal === null || Number.isNaN(costo) || costo < 0) {
     errores.push('El costo total debe ser un número mayor o igual a 0.');
   }
 
-  // El horario es opcional, pero si se envía deben venir las tres horas
   let datosHorario = null;
   if (horario && (horario.horaSalida || horario.horaLlegada || horario.horaVuelta)) {
     const { horaSalida, horaLlegada, horaVuelta } = horario;
@@ -66,6 +65,7 @@ const validarDatosEvento = (body) => {
       lugar: lugar.trim(),
       fecha: new Date(fecha),
       numPersonas: personas,
+      asistentesConfirmados: confirmados,
       personal: esTextoValido(personal) ? personal.trim() : 'No asignado',
       costoTotal: costo
     },
@@ -73,13 +73,11 @@ const validarDatosEvento = (body) => {
   };
 };
 
-// Lee y valida el id que viene en la URL
 const obtenerId = (req) => {
   const id = Number(req.params.id);
   return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-// GET /api/eventos -> lista todos los eventos ordenados por fecha
 const obtenerEventos = async (req, res) => {
   try {
     const eventos = await prisma.planEspecifico.findMany({
@@ -94,7 +92,6 @@ const obtenerEventos = async (req, res) => {
   }
 };
 
-// POST /api/eventos -> crea un nuevo evento y opcionalmente su horario
 const crearEvento = async (req, res) => {
   try {
     const { errores, datos, datosHorario } = validarDatosEvento(req.body);
@@ -117,8 +114,6 @@ const crearEvento = async (req, res) => {
   }
 };
 
-// PUT /api/eventos/:id -> edita un evento aplicando las reglas de negocio
-// de cambio de fecha y de cantidad de invitados
 const actualizarEvento = async (req, res) => {
   try {
     const id = obtenerId(req);
@@ -138,7 +133,6 @@ const actualizarEvento = async (req, res) => {
     const diasRestantes = calcularDiasRestantes(eventoActual.fecha);
     const avisos = [];
 
-    // Regla de cambio de fecha
     if (!mismoDia(eventoActual.fecha, datos.fecha)) {
       const regla = reglasEventos.calcularCambioFecha(diasRestantes);
       if (!regla.permitido) return res.status(400).json({ mensaje: regla.mensaje });
@@ -148,7 +142,6 @@ const actualizarEvento = async (req, res) => {
       avisos.push(regla.mensaje);
     }
 
-    // Regla de cambio de invitados
     if (eventoActual.numPersonas !== datos.numPersonas) {
       const regla = reglasEventos.calcularCambioInvitados(
         diasRestantes,
@@ -159,7 +152,6 @@ const actualizarEvento = async (req, res) => {
       avisos.push(regla.mensaje);
     }
 
-    // Horario: se crea/actualiza si viene, y se elimina si se dejó vacío
     let cambioHorario;
     if (datosHorario) {
       cambioHorario = { upsert: { create: datosHorario, update: datosHorario } };
@@ -183,7 +175,36 @@ const actualizarEvento = async (req, res) => {
   }
 };
 
-// DELETE /api/eventos/:id -> elimina un evento (su horario se borra en cascada)
+// PATCH /api/eventos/:id/asistencia -> actualiza la asistencia confirmada del evento
+const actualizarAsistencia = async (req, res) => {
+  try {
+    const id = obtenerId(req);
+    if (!id) return res.status(400).json({ mensaje: 'El id del evento no es válido.' });
+
+    const eventoActual = await prisma.planEspecifico.findUnique({ where: { idPE: id } });
+    if (!eventoActual) return res.status(404).json({ mensaje: 'El evento no existe.' });
+
+    const confirmados = Number(req.body.asistentesConfirmados);
+    if (!Number.isInteger(confirmados) || confirmados < 0) {
+      return res.status(400).json({ mensaje: 'El número de confirmados debe ser un entero mayor o igual a 0.' });
+    }
+    if (confirmados > eventoActual.numPersonas) {
+      return res.status(400).json({ mensaje: 'Los asistentes confirmados no pueden superar el total de invitados.' });
+    }
+
+    const eventoEditado = await prisma.planEspecifico.update({
+      where: { idPE: id },
+      data: { asistentesConfirmados: confirmados },
+      include: { horario: true }
+    });
+
+    res.status(200).json({ evento: formatearEvento(eventoEditado), mensaje: 'Asistencia confirmada actualizada correctamente.' });
+  } catch (error) {
+    console.error("Error al actualizar asistencia:", error);
+    res.status(500).json({ mensaje: "No se pudo actualizar la asistencia del evento" });
+  }
+};
+
 const eliminarEvento = async (req, res) => {
   try {
     const id = obtenerId(req);
@@ -205,7 +226,6 @@ const eliminarEvento = async (req, res) => {
   }
 };
 
-// POST /api/eventos/importar -> crea varios eventos a la vez (desde un archivo CSV)
 const importarEventos = async (req, res) => {
   try {
     const eventos = req.body.eventos;
@@ -245,4 +265,11 @@ const importarEventos = async (req, res) => {
   }
 };
 
-module.exports = { obtenerEventos, crearEvento, actualizarEvento, eliminarEvento, importarEventos };
+module.exports = {
+  obtenerEventos,
+  crearEvento,
+  actualizarEvento,
+  actualizarAsistencia,
+  eliminarEvento,
+  importarEventos
+};

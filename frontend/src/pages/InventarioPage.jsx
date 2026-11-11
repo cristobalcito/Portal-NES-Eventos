@@ -4,7 +4,7 @@ export default function InventarioPage() {
   const [productos, setProductos] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   
-  // Estados para modal RF8 (Verificación y reserva)
+  // Estados para modal RF8 (Verificacion y reserva)
   const [mostrarModalReserva, setMostrarModalReserva] = useState(false);
   const [productoSeleccionadoId, setProductoSeleccionadoId] = useState('');
   const [cantidadInput, setCantidadInput] = useState(1);
@@ -12,6 +12,13 @@ export default function InventarioPage() {
   const [alertaDeficit, setAlertaDeficit] = useState(null);
   const [mensajeExito, setMensajeExito] = useState('');
   const [procesandoReserva, setProcesandoReserva] = useState(false);
+
+  // Estados para modal Agregar Producto
+  const [mostrarModalCrear, setMostrarModalCrear] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaMarca, setNuevaMarca] = useState('');
+  const [nuevoStock, setNuevoStock] = useState(1);
+  const [guardandoProducto, setGuardandoProducto] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -81,6 +88,49 @@ export default function InventarioPage() {
     }
   };
 
+  const handleCrearProducto = async (e) => {
+    e.preventDefault();
+
+    if (!nuevoNombre.trim() || nuevoStock <= 0) {
+      alert("Ingrese un nombre de producto y un stock inicial valido.");
+      return;
+    }
+
+    try {
+      setGuardandoProducto(true);
+      const res = await fetch(`${API_URL}/api/inventario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          producto: nuevoNombre.trim(),
+          marca: nuevaMarca.trim() || null,
+          stock: Number(nuevoStock),
+          disponible: Number(nuevoStock),
+          ocupado: 0,
+          mantencion: 0
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "No se pudo ingresar el producto al inventario.");
+      }
+
+      setMensajeExito(`Producto "${data.producto}" ingresado exitosamente al inventario.`);
+      setTimeout(() => setMensajeExito(''), 4000);
+
+      setNuevoNombre('');
+      setNuevaMarca('');
+      setNuevoStock(1);
+      setMostrarModalCrear(false);
+      cargarInventario();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setGuardandoProducto(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e9e7ec', fontFamily: 'sans-serif' }}>
 
@@ -107,7 +157,11 @@ export default function InventarioPage() {
           >
             Verificar stock
           </button>
-          <button style={{ backgroundColor: '#734b75', color: 'white', border: 'none', padding: '12px 22px', borderRadius: '30px', cursor: 'pointer', fontWeight: 'bold' }}>
+          <button 
+            type="button"
+            onClick={() => setMostrarModalCrear(true)}
+            style={{ backgroundColor: '#734b75', color: 'white', border: 'none', padding: '12px 22px', borderRadius: '30px', cursor: 'pointer', fontWeight: 'bold' }}
+          >
             Agregar producto
           </button>
           <button style={{ backgroundColor: '#734b75', color: 'white', border: 'none', padding: '12px 22px', borderRadius: '30px', cursor: 'pointer', fontWeight: 'bold' }}>
@@ -160,6 +214,95 @@ export default function InventarioPage() {
           </table>
         </div>
       </main>
+
+      {/* Modal Agregar Producto */}
+      {mostrarModalCrear && (
+        <div 
+          onClick={() => !guardandoProducto && setMostrarModalCrear(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+            justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white', padding: '28px', borderRadius: '16px',
+              maxWidth: '450px', width: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 16px 0', color: '#734b75', fontSize: '20px' }}>
+              Agregar Nuevo Producto al Inventario
+            </h2>
+
+            <form onSubmit={handleCrearProducto}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Nombre del Producto / Equipo:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Consola de Audio Yamah 16Ch"
+                  value={nuevoNombre}
+                  onChange={(e) => setNuevoNombre(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Marca / Modelo (Opcional):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Yamaha"
+                  value={nuevaMarca}
+                  onChange={(e) => setNuevaMarca(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Stock Inicial:
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={nuevoStock}
+                  onChange={(e) => setNuevoStock(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setMostrarModalCrear(false)}
+                  disabled={guardandoProducto}
+                  style={{ backgroundColor: '#64748b', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoProducto}
+                  style={{
+                    backgroundColor: '#734b75', color: 'white', border: 'none', padding: '10px 22px',
+                    borderRadius: '20px', fontWeight: 'bold', cursor: guardandoProducto ? 'wait' : 'pointer',
+                    opacity: guardandoProducto ? 0.7 : 1
+                  }}
+                >
+                  {guardandoProducto ? 'Guardando...' : 'Guardar Producto'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal Control Disponibilidad */}
       {mostrarModalReserva && (

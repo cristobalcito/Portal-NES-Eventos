@@ -14,9 +14,15 @@ export default function GestionarEventos() {
   const [errorEliminar, setErrorEliminar] = useState('');
   const [importarAbierto, setImportarAbierto] = useState(false);
 
+  // Estado para el modal de Asistencia
+  const [eventoAsistencia, setEventoAsistencia] = useState(null);
+  const [confirmadosInput, setConfirmadosInput] = useState(0);
+  const [guardandoAsistencia, setGuardandoAsistencia] = useState(false);
+  const [errorAsistencia, setErrorAsistencia] = useState('');
+
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  useEffect(() => {
+  const cargarEventos = () => {
     fetch(`${API_URL}/api/eventos`)
       .then((respuesta) => {
         if (!respuesta.ok) {
@@ -28,11 +34,10 @@ export default function GestionarEventos() {
         const lista = Array.isArray(datos) ? datos : (datos.datos || []);
         if (Array.isArray(lista)) {
           setEventos(lista);
-          if (lista.length > 0) {
-            setEventoSeleccionado(lista[0]);
-          } else {
-            setEventoSeleccionado(null);
-          }
+          setEventoSeleccionado((actual) => {
+            if (!actual) return lista[0] || null;
+            return lista.find((e) => (e.idPE || e.id) === (actual.idPE || actual.id)) || lista[0] || null;
+          });
         } else {
           setEventos([]);
           setEventoSeleccionado(null);
@@ -43,9 +48,12 @@ export default function GestionarEventos() {
         setEventos([]);
         setEventoSeleccionado(null);
       });
+  };
+
+  useEffect(() => {
+    cargarEventos();
   }, [API_URL]);
 
-  // Envía el nuevo evento al backend
   const crearEvento = async (datosEvento) => {
     const respuesta = await fetch(`${API_URL}/api/eventos`, {
       method: 'POST',
@@ -67,13 +75,11 @@ export default function GestionarEventos() {
     mostrarMensaje(datos.mensaje || `Evento "${nuevo.descripcion}" creado correctamente.`);
   };
 
-  // Muestra un mensaje verde por unos segundos
   const mostrarMensaje = (texto, duracion = 3000) => {
     setMensajeExito(texto);
     setTimeout(() => setMensajeExito(''), duracion);
   };
 
-  // Envía los cambios de un evento
   const editarEvento = async (datosEvento) => {
     const id = eventoEditando.idPE || eventoEditando.id;
     const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, {
@@ -99,7 +105,43 @@ export default function GestionarEventos() {
     mostrarMensaje(datos.mensaje || `Evento "${editado.descripcion}" actualizado.${avisos}`, avisos ? 6000 : 3000);
   };
 
-  // Elimina el evento confirmado
+  const handleAbrirAsistencia = (evento) => {
+    setErrorAsistencia('');
+    setEventoAsistencia(evento);
+    setConfirmadosInput(evento.asistentesConfirmados || 0);
+  };
+
+  const handleGuardarAsistencia = async (e) => {
+    e.preventDefault();
+    if (!eventoAsistencia) return;
+
+    const id = eventoAsistencia.idPE || eventoAsistencia.id;
+    try {
+      setGuardandoAsistencia(true);
+      setErrorAsistencia('');
+      const res = await fetch(`${API_URL}/api/eventos/${id}/asistencia`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asistentesConfirmados: Number(confirmadosInput) })
+      });
+
+      const datos = await res.json();
+      if (!res.ok) throw new Error(datos.mensaje || 'Error al actualizar asistencia');
+
+      const eventoActualizado = datos.evento || datos;
+      setEventos((anteriores) =>
+        anteriores.map((e) => ((e.idPE || e.id) === id ? eventoActualizado : e))
+      );
+      setEventoSeleccionado(eventoActualizado);
+      setEventoAsistencia(null);
+      mostrarMensaje(`Asistencia de "${eventoActualizado.descripcion}" actualizada.`);
+    } catch (err) {
+      setErrorAsistencia(err.message);
+    } finally {
+      setGuardandoAsistencia(false);
+    }
+  };
+
   const confirmarEliminar = async () => {
     const id = eventoAEliminar.idPE || eventoAEliminar.id;
     try {
@@ -125,7 +167,6 @@ export default function GestionarEventos() {
     }
   };
 
-  // Importar eventos desde el CSV
   const importarEventos = async (eventosAImportar) => {
     const respuesta = await fetch(`${API_URL}/api/eventos/importar`, {
       method: 'POST',
@@ -165,8 +206,6 @@ export default function GestionarEventos() {
     new Date(fechaHora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
 
   const listaEventos = Array.isArray(eventos) ? eventos : [];
-
-  // Búsqueda en descripción, lugar y personal
   const textoBusqueda = busqueda.toLowerCase();
   const eventosFiltrados = listaEventos.filter((evento) =>
     [evento.descripcion, evento.lugar, evento.personal].some((campo) =>
@@ -179,7 +218,7 @@ export default function GestionarEventos() {
       
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '30px' }}>
         
-        {/* Barra superior de Búsqueda y Botones */}
+        {/* Barra superior */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
 
           <div style={{ 
@@ -250,57 +289,77 @@ export default function GestionarEventos() {
               No hay eventos que coincidan con "{busqueda}".
             </p>
           ) : (
-            eventosFiltrados.map((evento, index) => (
-              <div 
-                key={evento.idPE || evento.id || index} 
-                onClick={() => setEventoSeleccionado(evento)}
-                style={{ 
-                  backgroundColor: evento.estado === 'PENDIENTE' ? '#d97706' : '#d499a7', borderRadius: '30px', padding: '15px 25px', 
-                  marginBottom: '15px', display: 'flex', justifyContent: 'space-between', 
-                  alignItems: 'center', border: '1px solid black', boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
-                  cursor: 'pointer' 
-                }}
-              >
-                <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                  {evento.estado === 'PENDIENTE' ? '[PENDIENTE] ' : ''}
-                  {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'}
-                </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    title="Editar evento"
-                    onClick={(e) => { e.stopPropagation(); abrirEditar(evento); }}
-                    style={{ backgroundColor: 'white', color: '#523354', border: '1px solid #8a5b96', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    Editar
-                  </button>
-                  <button
-                    title="Eliminar evento"
-                    onClick={(e) => { e.stopPropagation(); setErrorEliminar(''); setEventoAEliminar(evento); }}
-                    style={{ backgroundColor: 'white', color: '#c0392b', border: '1px solid #c0392b', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    Eliminar
-                  </button>
+            eventosFiltrados.map((evento, index) => {
+              const invitados = evento.numPersonas || 0;
+              const confirmados = evento.asistentesConfirmados || 0;
+              return (
+                <div 
+                  key={evento.idPE || evento.id || index} 
+                  onClick={() => setEventoSeleccionado(evento)}
+                  style={{ 
+                    backgroundColor: evento.estado === 'PENDIENTE' ? '#d97706' : '#d499a7', borderRadius: '30px', padding: '15px 25px', 
+                    marginBottom: '15px', display: 'flex', justifyContent: 'space-between', 
+                    alignItems: 'center', border: '1px solid black', boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                    cursor: 'pointer' 
+                  }}
+                >
+                  <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px', flex: 1, textAlign: 'center' }}>
+                    {evento.estado === 'PENDIENTE' ? '[PENDIENTE] ' : ''}
+                    {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'} | Asistencia: {confirmados} / {invitados}
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      title="Controlar asistencia"
+                      onClick={(e) => { e.stopPropagation(); handleAbrirAsistencia(evento); }}
+                      style={{ backgroundColor: 'white', color: '#1e40af', border: '1px solid #1e40af', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Asistencia
+                    </button>
+                    <button
+                      title="Editar evento"
+                      onClick={(e) => { e.stopPropagation(); abrirEditar(evento); }}
+                      style={{ backgroundColor: 'white', color: '#523354', border: '1px solid #8a5b96', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      title="Eliminar evento"
+                      onClick={(e) => { e.stopPropagation(); setErrorEliminar(''); setEventoAEliminar(evento); }}
+                      style={{ backgroundColor: 'white', color: '#c0392b', border: '1px solid #c0392b', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
-        {/* Tarjeta de Detalles del Evento Seleccionado */}
+        {/* Tarjeta de Detalles */}
         <div style={{ 
           backgroundColor: 'white', borderRadius: '15px', padding: '20px 30px', 
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)', minHeight: '150px'
         }}>
           {eventoSeleccionado ? (
             <>
-              <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
-                {eventoSeleccionado.descripcion}
-                {eventoSeleccionado.estado && (
-                  <span style={{ fontSize: '14px', marginLeft: '10px', color: eventoSeleccionado.estado === 'PENDIENTE' ? '#d97706' : '#15803d' }}>
-                    ({eventoSeleccionado.estado})
-                  </span>
-                )}
-              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
+                  {eventoSeleccionado.descripcion}
+                  {eventoSeleccionado.estado && (
+                    <span style={{ fontSize: '14px', marginLeft: '10px', color: eventoSeleccionado.estado === 'PENDIENTE' ? '#d97706' : '#15803d' }}>
+                      ({eventoSeleccionado.estado})
+                    </span>
+                  )}
+                </h2>
+                <button
+                  onClick={() => handleAbrirAsistencia(eventoSeleccionado)}
+                  style={{ backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Registrar Asistencia Confirmada
+                </button>
+              </div>
+
               <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
                 <p style={{ margin: '5px 0' }}>Organizador(a) / Personal: {eventoSeleccionado.personal || 'No asignado'}</p>
                 <p style={{ margin: '5px 0' }}>Ubicación: {eventoSeleccionado.lugar || 'No especificado'}</p>
@@ -318,9 +377,15 @@ export default function GestionarEventos() {
                     : 'No especificado'}
                 </p>
                 <p style={{ margin: '5px 0' }}>
-                  Invitados: <span style={{ textDecoration: 'underline', fontWeight: 'bold' }}>
-                    [{eventoSeleccionado.numPersonas || 0} personas]
-                  </span>
+                  Invitados Totales: <span style={{ fontWeight: 'bold' }}>{eventoSeleccionado.numPersonas || 0} personas</span>
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  Asistentes Confirmados: <span style={{ fontWeight: 'bold', color: '#15803d' }}>{eventoSeleccionado.asistentesConfirmados || 0} personas</span>
+                  {eventoSeleccionado.numPersonas > 0 && (
+                    <span style={{ fontSize: '14px', marginLeft: '8px', color: '#666' }}>
+                      ({Math.round(((eventoSeleccionado.asistentesConfirmados || 0) / eventoSeleccionado.numPersonas) * 100)}% de asistencia)
+                    </span>
+                  )}
                 </p>
               </div>
             </>
@@ -343,6 +408,88 @@ export default function GestionarEventos() {
         onClose={cerrarModal}
         onGuardar={eventoEditando ? editarEvento : crearEvento}
       />
+
+      {/* Modal Control Asistencia Confirmada */}
+      {eventoAsistencia && (
+        <div
+          onClick={() => !guardandoAsistencia && setEventoAsistencia(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+            justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white', padding: '25px 30px', borderRadius: '20px',
+              maxWidth: '420px', width: '90%', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: '22px' }}>Confirmación de Asistencia</h2>
+            <p style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#666' }}>
+              Evento: <strong>{eventoAsistencia.descripcion}</strong>
+            </p>
+
+            <form onSubmit={handleGuardarAsistencia}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Invitados Programados:
+                </label>
+                <input
+                  type="text"
+                  value={`${eventoAsistencia.numPersonas || 0} personas`}
+                  disabled
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', backgroundColor: '#f3f4f6', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Asistentes Confirmados / Reales:
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={eventoAsistencia.numPersonas || 0}
+                  value={confirmadosInput}
+                  onChange={(e) => setConfirmadosInput(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              {errorAsistencia && (
+                <p style={{ margin: '0 0 15px 0', color: '#b3261e', backgroundColor: '#fdecea', padding: '8px 12px', borderRadius: '10px', fontSize: '14px' }}>
+                  {errorAsistencia}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEventoAsistencia(null)}
+                  disabled={guardandoAsistencia}
+                  style={{ backgroundColor: '#aaa', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoAsistencia}
+                  style={{
+                    backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '10px 25px',
+                    borderRadius: '20px', fontWeight: 'bold', cursor: guardandoAsistencia ? 'wait' : 'pointer',
+                    opacity: guardandoAsistencia ? 0.7 : 1
+                  }}
+                >
+                  {guardandoAsistencia ? 'Guardando...' : 'Guardar Asistencia'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Confirmación para eliminar */}
       {eventoAEliminar && (
