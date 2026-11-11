@@ -147,7 +147,7 @@ export default function MantencionesPagina() {
           <h1 style={{ margin: 0, color: '#523354', fontSize: '28px' }}>Mantención de equipos</h1>
           <p style={{ margin: '4px 0 0', color: '#666' }}>Equipos enviados a servicio técnico y su historial.</p>
         </div>
-        <button onClick={abrirRegistrar} style={estilos.botonGrande}>Enviar equipo a mantención (RF9)</button>
+        <button onClick={abrirRegistrar} style={estilos.botonGrande}>Enviar equipo a mantención</button>
       </div>
 
       {atrasadas.length > 0 && (

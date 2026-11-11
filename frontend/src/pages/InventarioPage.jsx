@@ -161,7 +161,7 @@ export default function InventarioPage() {
         </div>
       </main>
 
-      {/* Modal Control Disponibilidad RF8 */}
+      {/* Modal Control Disponibilidad */}
       {mostrarModalReserva && (
         <div 
           onClick={() => !procesandoReserva && setMostrarModalReserva(false)}
@@ -179,7 +179,7 @@ export default function InventarioPage() {
             }}
           >
             <h2 style={{ margin: '0 0 16px 0', color: '#1e40af', fontSize: '20px' }}>
-              Control de Disponibilidad y Reserva (RF8)
+              Control de Disponibilidad y Reserva
             </h2>
 
             {alertaDeficit && (

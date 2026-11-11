@@ -10,7 +10,7 @@ export default function PersonalPagina() {
   const [error, setError] = useState('');
   const [mostrarModal, setMostrarModal] = useState(false);
 
-  // Estados modal asignacion RF7
+  // Estados modal asignacion
   const [mostrarModalAsignar, setMostrarModalAsignar] = useState(false);
   const [eventoSeleccionadoId, setEventoSeleccionadoId] = useState('');
   const [rolAsignadoInput, setRolAsignadoInput] = useState('Operativo');
@@ -338,7 +338,7 @@ export default function PersonalPagina() {
                 
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
-                    title="Asignar a evento (RF7)"
+                    title="Asignar a evento"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleAbrirAsignar(p);
@@ -395,7 +395,7 @@ export default function PersonalPagina() {
                   onClick={() => handleAbrirAsignar(personalSeleccionado)}
                   style={{ backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
-                  Asignar a Evento (RF7)
+                  Asignar a Evento
                 </button>
               </div>
 
@@ -462,7 +462,7 @@ export default function PersonalPagina() {
         onGuardar={handleGuardarNuevoPersonal}
       />
 
-      {/* Modal Asignar a Evento RF7 */}
+      {/* Modal Asignar a Evento */}
       {mostrarModalAsignar && personalSeleccionado && (
         <div
           onClick={() => !guardandoAsignacion && setMostrarModalAsignar(false)}
@@ -479,7 +479,7 @@ export default function PersonalPagina() {
               padding: '25px 30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', boxSizing: 'border-box'
             }}
           >
-            <h2 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: '22px' }}>Asignar a Evento (RF7)</h2>
+            <h2 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: '22px' }}>Asignar a Evento</h2>
             <p style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#666' }}>
               Trabajador: <strong>{personalSeleccionado.nombre || obtenerRut(personalSeleccionado)}</strong>
             </p>

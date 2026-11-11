@@ -117,7 +117,7 @@ export default function EquiposArrendadosPagina() {
           <h1 style={{ margin: 0, color: '#523354', fontSize: '28px' }}>Equipos arrendados a terceros</h1>
           <p style={{ margin: '4px 0 0', color: '#666' }}>Equipamiento externo subcontratado para eventos.</p>
         </div>
-        <button onClick={() => setModalAbierto(true)} style={estilos.botonGrande}>Registrar equipo arrendado (RF10)</button>
+        <button onClick={() => setModalAbierto(true)} style={estilos.botonGrande}>Registrar equipo arrendado</button>
       </div>
 
       {atrasados.length > 0 && (
