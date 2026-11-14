@@ -58,7 +58,7 @@ export default function CatalogoPagina() {
   // Control de desplazamiento horizontal suave
   const desplazarCarrusel = (direccion) => {
     if (!contenedorCarruselRef.current) return;
-    const distancia = 372; // Ancho de tarjeta (340px) + gap (32px)
+    const distancia = 350;
     contenedorCarruselRef.current.scrollBy({
       left: direccion === 'izquierda' ? -distancia : distancia,
       behavior: 'smooth'
@@ -242,7 +242,8 @@ export default function CatalogoPagina() {
                 <div 
                   key={idPlan}
                   style={{ 
-                    flex: '0 0 340px',
+                    flex: '0 0 auto',
+                    width: 'fit-content',
                     display: 'flex', 
                     flexDirection: 'column', 
                     justifyContent: 'space-between'
@@ -255,17 +256,24 @@ export default function CatalogoPagina() {
                   />
 
                   {esGerenteGeneral && (
-                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                    <div style={{ 
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '0.5rem', 
+                      marginTop: '0.75rem',
+                      width: '100%'
+                    }}>
                       <button
                         onClick={() => abrirModalEditar(plan)}
                         style={{
-                          flex: 1,
-                          padding: '0.6rem',
+                          width: '100%',
+                          padding: '0.5rem 0.25rem',
                           backgroundColor: '#734b75',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '6px',
-                          fontWeight: 'bold',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
                           cursor: 'pointer'
                         }}
                       >
@@ -274,12 +282,14 @@ export default function CatalogoPagina() {
                       <button
                         onClick={() => manejarEliminar(plan)}
                         style={{
-                          padding: '0.6rem 1rem',
+                          width: '100%',
+                          padding: '0.5rem 0.25rem',
                           backgroundColor: '#dc2626',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '6px',
-                          fontWeight: 'bold',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
                           cursor: 'pointer'
                         }}
                       >
@@ -324,7 +334,7 @@ export default function CatalogoPagina() {
       ) : (
         <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: '#fff', borderRadius: '12px', width: '100%', maxWidth: '600px' }}>
           <p style={{ color: '#666', fontSize: '1.1rem', margin: 0 }}>
-            No hay planes base registrados en la base de datos.[cite: 6]
+            No hay planes base registrados en la base de datos.
           </p>
         </div>
       )}
