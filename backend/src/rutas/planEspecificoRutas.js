@@ -4,7 +4,9 @@ const {
   crearPlanEspecifico,
   modificarPlanEspecifico,
   eliminarPlanEspecifico,
-  obtenerPlanesEspecificos 
+  obtenerPlanesEspecificos,
+  ajustarAsistentes,
+  reprogramarFecha 
 } = require('../controladores/planEspecificoControlador');
 
 // GET /api/planes-especificos
@@ -19,5 +21,10 @@ router.put('/:idPE', modificarPlanEspecifico);
 
 // DELETE /api/planes-especificos/:idPE
 router.delete('/:idPE', eliminarPlanEspecifico);
+
+
+router.put('/:id/ajustar-asistentes', ajustarAsistentes);
+
+router.put('/:id/reprogramar-fecha', reprogramarFecha);
 
 module.exports = router;

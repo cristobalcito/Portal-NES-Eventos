@@ -3,10 +3,8 @@ const path = require('path');
 const prisma = require('../lib/prisma');
 const { normalizarRut } = require('../servicios/rutServicio');
 
-// Carpeta donde se guardan los documentos de garantía
 const CARPETA_GARANTIAS = path.join(__dirname, '..', '..', 'uploads', 'garantias');
 
-// Datos del proveedor y del evento que se incluyen junto a cada equipo
 const datosRelacionados = {
   proveedor: true,
   evento: { select: { idPE: true, descripcion: true, fecha: true } }
@@ -15,14 +13,12 @@ const datosRelacionados = {
 const esTextoValido = (valor) => typeof valor === 'string' && valor.trim() !== '';
 const esFechaValida = (valor) => valor && !isNaN(new Date(valor).getTime());
 
-// Borra un archivo de garantía (por ejemplo, si el formulario tenía errores)
 const borrarArchivo = (nombreArchivo) => {
   if (nombreArchivo) {
     fs.unlink(path.join(CARPETA_GARANTIAS, nombreArchivo), () => {});
   }
 };
 
-// Indica cómo va el plazo de devolución: devuelto, atrasado, por vencer (menos de 24 h) o vigente
 const calcularEstadoPlazo = (equipo) => {
   if (equipo.estado === 'devuelto') return 'devuelto';
 
@@ -34,7 +30,7 @@ const calcularEstadoPlazo = (equipo) => {
 
 const agregarEstadoPlazo = (equipo) => ({ ...equipo, estadoPlazo: calcularEstadoPlazo(equipo) });
 
-// GET /api/equipos-arrendados -> lista los equipos arrendados
+// GET /api/equipos-arrendados
 const obtenerEquiposArrendados = async (req, res) => {
   try {
     const equipos = await prisma.equipoArrendado.findMany({
@@ -48,14 +44,12 @@ const obtenerEquiposArrendados = async (req, res) => {
   }
 };
 
-// POST /api/equipos-arrendados -> registra un equipo arrendado (RU-4)
-// Los datos llegan como formulario con archivo: el texto en req.body y la garantía en req.file
+// POST /api/equipos-arrendados (RF10)
 const registrarEquipoArrendado = async (req, res) => {
   const datos = req.body;
   const archivo = req.file;
 
   try {
-    // 1. Validar los datos del formulario
     const errores = [];
     const rutProveedor = normalizarRut(datos.proveedorRut);
     const cantidad = Number(datos.cantidad);
@@ -63,19 +57,19 @@ const registrarEquipoArrendado = async (req, res) => {
     const eventoId = Number(datos.eventoId);
 
     if (!esTextoValido(datos.proveedorNombre)) errores.push('El nombre del proveedor es obligatorio.');
-    if (!rutProveedor) errores.push('El RUT del proveedor no es válido.');
+    if (!rutProveedor) errores.push('El RUT del proveedor no es valido.');
     if (!esTextoValido(datos.proveedorContacto)) errores.push('El contacto del proveedor es obligatorio.');
     if (!esTextoValido(datos.nombreEquipo)) errores.push('El nombre del equipo es obligatorio.');
     if (!esTextoValido(datos.codigoEquipo)) errores.push('El ID del equipo es obligatorio.');
     if (!Number.isInteger(cantidad) || cantidad <= 0) errores.push('La cantidad debe ser un entero mayor a 0.');
-    if (datos.costo === '' || isNaN(costo) || costo < 0) errores.push('El costo debe ser un número mayor o igual a 0.');
-    if (!esFechaValida(datos.fechaRetiro)) errores.push('La fecha de retiro no es válida.');
-    if (!esFechaValida(datos.fechaDevolucion)) errores.push('La fecha de devolución no es válida.');
+    if (datos.costo === '' || isNaN(costo) || costo < 0) errores.push('El costo debe ser un numero mayor o igual a 0.');
+    if (!esFechaValida(datos.fechaRetiro)) errores.push('La fecha de retiro no es valida.');
+    if (!esFechaValida(datos.fechaDevolucion)) errores.push('La fecha de devolucion no es valida.');
     if (new Date(datos.fechaDevolucion) < new Date(datos.fechaRetiro)) {
-      errores.push('La fecha de devolución no puede ser anterior a la de retiro.');
+      errores.push('La fecha de devolucion no puede ser anterior a la de retiro.');
     }
-    if (!esTextoValido(datos.receptorBodega)) errores.push('Debes indicar quién recibe el equipo en bodega.');
-    if (!archivo) errores.push('Debes adjuntar el documento de garantía.');
+    if (!esTextoValido(datos.receptorBodega)) errores.push('Debes indicar quien recibe el equipo en bodega.');
+    if (!archivo) errores.push('Debes adjuntar el documento de garantia.');
     if (!eventoId) errores.push('Debes vincular el equipo a un evento programado.');
 
     if (errores.length > 0) {
@@ -83,24 +77,21 @@ const registrarEquipoArrendado = async (req, res) => {
       return res.status(400).json({ mensaje: errores.join(' ') });
     }
 
-    // 2. El evento debe existir y no haber pasado
     const evento = await prisma.planEspecifico.findUnique({ where: { idPE: eventoId } });
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
     if (!evento || new Date(evento.fecha) < hoy) {
       borrarArchivo(archivo.filename);
-      return res.status(400).json({ mensaje: 'El evento seleccionado no existe o ya se realizó.' });
+      return res.status(400).json({ mensaje: 'El evento seleccionado no existe o ya se realizo.' });
     }
 
-    // 3. Guardar el proveedor (si ya existe, se actualizan sus datos)
     await prisma.proveedor.upsert({
       where: { rut: rutProveedor },
       create: { rut: rutProveedor, nombre: datos.proveedorNombre.trim(), contacto: datos.proveedorContacto.trim() },
       update: { nombre: datos.proveedorNombre.trim(), contacto: datos.proveedorContacto.trim() }
     });
 
-    // 4. Guardar el equipo arrendado vinculado al proveedor y al evento
     const nuevoEquipo = await prisma.equipoArrendado.create({
       data: {
         nombreEquipo: datos.nombreEquipo.trim(),
@@ -118,7 +109,6 @@ const registrarEquipoArrendado = async (req, res) => {
       include: datosRelacionados
     });
 
-    // 5. Sumar el costo del arriendo al presupuesto del evento
     await prisma.planEspecifico.update({
       where: { idPE: eventoId },
       data: { costoTotal: evento.costoTotal + costo }
@@ -132,7 +122,7 @@ const registrarEquipoArrendado = async (req, res) => {
   }
 };
 
-// PATCH /api/equipos-arrendados/:id/devolver -> marca el equipo como devuelto al proveedor
+// PATCH /api/equipos-arrendados/:id/devolver
 const marcarDevuelto = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -153,12 +143,12 @@ const marcarDevuelto = async (req, res) => {
 
     res.json(agregarEstadoPlazo(equipoDevuelto));
   } catch (error) {
-    console.error('Error al marcar devolución:', error);
+    console.error('Error al marcar devolucion:', error);
     res.status(500).json({ mensaje: 'No se pudo marcar como devuelto' });
   }
 };
 
-// DELETE /api/equipos-arrendados/:id -> elimina el registro y descuenta su costo del evento
+// DELETE /api/equipos-arrendados/:id
 const eliminarEquipoArrendado = async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -168,14 +158,14 @@ const eliminarEquipoArrendado = async (req, res) => {
       return res.status(404).json({ mensaje: 'El equipo arrendado no existe.' });
     }
 
-    // 1. Descontar el costo del presupuesto del evento
     const evento = await prisma.planEspecifico.findUnique({ where: { idPE: equipo.eventoId } });
-    await prisma.planEspecifico.update({
-      where: { idPE: equipo.eventoId },
-      data: { costoTotal: evento.costoTotal - equipo.costo }
-    });
+    if (evento) {
+      await prisma.planEspecifico.update({
+        where: { idPE: equipo.eventoId },
+        data: { costoTotal: Math.max(0, evento.costoTotal - equipo.costo) }
+      });
+    }
 
-    // 2. Borrar el registro y su archivo de garantía
     await prisma.equipoArrendado.delete({ where: { id } });
     borrarArchivo(equipo.garantiaArchivo);
 
@@ -186,7 +176,7 @@ const eliminarEquipoArrendado = async (req, res) => {
   }
 };
 
-// GET /api/equipos-arrendados/:id/garantia -> descarga el documento de garantía
+// GET /api/equipos-arrendados/:id/garantia
 const descargarGarantia = async (req, res) => {
   try {
     const equipo = await prisma.equipoArrendado.findUnique({ where: { id: Number(req.params.id) } });
@@ -197,13 +187,13 @@ const descargarGarantia = async (req, res) => {
 
     const rutaArchivo = path.join(CARPETA_GARANTIAS, equipo.garantiaArchivo);
     if (!fs.existsSync(rutaArchivo)) {
-      return res.status(404).json({ mensaje: 'El archivo de garantía no se encuentra.' });
+      return res.status(404).json({ mensaje: 'El archivo de garantia no se encuentra.' });
     }
 
     res.download(rutaArchivo, equipo.garantiaNombre);
   } catch (error) {
-    console.error('Error al descargar garantía:', error);
-    res.status(500).json({ mensaje: 'No se pudo descargar la garantía' });
+    console.error('Error al descargar garantia:', error);
+    res.status(500).json({ mensaje: 'No se pudo descargar la garantia' });
   }
 };
 

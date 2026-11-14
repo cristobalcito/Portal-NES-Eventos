@@ -21,10 +21,10 @@ model Usuario {
 }
 
 model GerenteGeneral {
-  rut          String         @id
-  usuario      Usuario        @relation(fields: [rut], references: [rut], onDelete: Cascade)
+  rut          String        @id
+  usuario      Usuario       @relation(fields: [rut], references: [rut], onDelete: Cascade)
   planBaseId   Int?
-  planBase     PlanBase?      @relation(fields: [planBaseId], references: [idPL])
+  planBase     PlanBase?     @relation(fields: [planBaseId], references: [idPL])
   arriendos    Arriendo[]
   equipamiento Equipamiento[]
 }
@@ -49,7 +49,6 @@ model Cliente {
 model PersonalEventual {
   rut                 String  @id
   usuario             Usuario @relation(fields: [rut], references: [rut], onDelete: Cascade)
-
   rol                 String?
   disponibilidad      String?
   fono                String?
@@ -98,17 +97,19 @@ model PlanBase {
 }
 
 model PlanEspecifico {
-  idPE        Int       @id @default(autoincrement())
-  costoTotal  Float
-  descripcion String
-  lugar       String
-  numPersonas Int
-  personal    String
-  fecha       DateTime
-  planBaseId  Int?
-  planBase    PlanBase? @relation(fields: [planBaseId], references: [idPL])
-  horario     Horario?
+  idPE              Int               @id @default(autoincrement())
+  costoTotal        Float
+  descripcion       String
+  lugar             String
+  numPersonas       Int
+  personasConfirmadas Int @default(0)
+  personal          String
+  fecha             DateTime
+  planBaseId        Int?
+  planBase          PlanBase?         @relation(fields: [planBaseId], references: [idPL])
+  horario           Horario?
   equiposArrendados EquipoArrendado[]
+  alertas           Alerta[]
 }
 
 model Horario {
@@ -119,7 +120,6 @@ model Horario {
   planEspecificoId Int            @unique
   planEspecifico   PlanEspecifico @relation(fields: [planEspecificoId], references: [idPE], onDelete: Cascade)
 }
-
 
 // Misceláneo
 
@@ -137,6 +137,13 @@ model Alerta {
   contenido  String
   clienteRut String?
   cliente    Cliente? @relation(fields: [clienteRut], references: [rut])
+  planEspecificoId Int?
+  planEspecifico   PlanEspecifico? @relation(fields: [planEspecificoId], references: [idPE], onDelete: Cascade)
+  tipo             String          @default("GENERAL")
+  leida            Boolean         @default(false)
+  creadaEn         DateTime        @default(now())
+
+  @@unique([planEspecificoId, tipo])
 }
 
 model Inventario {

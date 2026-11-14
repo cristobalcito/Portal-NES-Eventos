@@ -49,3 +49,31 @@ export const eliminarPlanEspecificoServicio = async (idPE) => {
   }
   return await res.json();
 };
+
+// 4. Ajustar asistentes con reglas temporales (RF4)
+export const ajustarAsistentesServicio = async (idPE, nuevosAsistentes) => {
+  const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}/ajustar-asistentes`, {
+    method: 'PUT',
+    headers: obtenerHeaders(),
+    body: JSON.stringify({ nuevosAsistentes })
+  });
+  const datos = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(datos.mensaje || 'No se pudo realizar el ajuste de asistentes.');
+  }
+  return datos;
+};
+
+// 5. Reprogramar fecha con reglas temporales (RF5)
+export const reprogramarFechaServicio = async (idPE, nuevaFecha) => {
+  const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}/reprogramar-fecha`, {
+    method: 'PUT',
+    headers: obtenerHeaders(),
+    body: JSON.stringify({ nuevaFecha })
+  });
+  const datos = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(datos.mensaje || 'No se pudo reprogramar la fecha del evento.');
+  }
+  return datos;
+};

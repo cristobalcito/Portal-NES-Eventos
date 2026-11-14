@@ -34,13 +34,15 @@ export function ProveedorAutenticacion({ children }) {
     // 3. Guarda la sesión en el estado global y en localStorage
     setUsuario(usuarioConRol);
     localStorage.setItem('usuario', JSON.stringify(usuarioConRol));
+    localStorage.setItem('token', respuesta.token);
 
     return usuarioConRol;
   };
 
   const logout = () => {
-    setUsuario(null);
-    localStorage.removeItem('usuario');
+  setUsuario(null);
+  localStorage.removeItem('usuario');
+  localStorage.removeItem('token');
   };
 
   return (
