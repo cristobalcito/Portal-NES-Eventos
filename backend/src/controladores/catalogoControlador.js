@@ -41,6 +41,15 @@ const crearPlanBase = async (req, res) => {
         mensaje: "El costo base es obligatorio"
       });
     }
+    const MAX_CARACTERES_DESCRIPCION = 300;
+
+// Dentro de crearPlanBase y modificarPlanBase, agrega esta validación:
+if (descripcion && descripcion.trim().length > MAX_CARACTERES_DESCRIPCION) {
+  return res.status(400).json({
+    exito: false,
+    mensaje: `La descripción no puede superar los ${MAX_CARACTERES_DESCRIPCION} caracteres.`
+  });
+}
 
     const costo = parseFloat(costoBase);
     if (isNaN(costo) || costo < 0) {
