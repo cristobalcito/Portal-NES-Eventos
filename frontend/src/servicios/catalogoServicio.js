@@ -11,6 +11,27 @@ export async function obtenerPlanesBaseServicio() {
   return resultado;
 }
 
+export async function crearPlanBaseServicio(datosNuevoPlan) {
+  const token = localStorage.getItem('token');
+
+  const respuesta = await fetch(`${API_BASE_URL}/catalogo/plan-base`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(datosNuevoPlan)
+  });
+
+  const resultado = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(resultado.mensaje || 'Error al crear el plan base');
+  }
+
+  return resultado;
+}
+
 export async function modificarPlanBaseServicio(idPL, datosActualizados) {
   const token = localStorage.getItem('token');
   
@@ -23,10 +44,31 @@ export async function modificarPlanBaseServicio(idPL, datosActualizados) {
     body: JSON.stringify(datosActualizados)
   });
 
+  const resultado = await respuesta.json();
+
   if (!respuesta.ok) {
-    throw new Error(`Error al modificar el plan base #${idPL}`);
+    throw new Error(resultado.mensaje || `Error al modificar el plan base #${idPL}`);
   }
 
+  return resultado;
+}
+
+export async function eliminarPlanBaseServicio(idPL) {
+  const token = localStorage.getItem('token');
+
+  const respuesta = await fetch(`${API_BASE_URL}/catalogo/plan-base/${idPL}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
   const resultado = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(resultado.mensaje || `Error al eliminar el plan base #${idPL}`);
+  }
+
   return resultado;
 }

@@ -5,6 +5,34 @@ const {
   evaluarReprogramacionFecha
 } = require('../utilidades/reglasEvento');
 
+// Función auxiliar para validar el orden lógico del horario (opcional, pero si se envía debe cumplir Salida < Llegada < Vuelta)
+const validarHorarioEvento = (horario) => {
+  if (!horario) return null;
+
+  const { horaSalida, horaLlegada, horaVuelta } = horario;
+  if (!horaSalida || !horaLlegada || !horaVuelta) {
+    return 'Si se incluye horario, debe contener hora de salida, llegada y vuelta.';
+  }
+
+  const salida = new Date(horaSalida);
+  const llegada = new Date(horaLlegada);
+  const vuelta = new Date(horaVuelta);
+
+  if (isNaN(salida.getTime()) || isNaN(llegada.getTime()) || isNaN(vuelta.getTime())) {
+    return 'El formato de las horas enviadas no es válido.';
+  }
+
+  if (llegada <= salida) {
+    return 'La hora de llegada debe ser posterior a la hora de salida.';
+  }
+
+  if (vuelta <= llegada) {
+    return 'La hora de vuelta debe ser posterior a la hora de llegada.';
+  }
+
+  return null;
+};
+
 // 1. Obtener todos los planes especificos / eventos para el Horario Compartido
 const obtenerPlanesEspecificos = async (req, res, next) => {
   try {
@@ -26,7 +54,12 @@ const obtenerPlanesEspecificos = async (req, res, next) => {
 // 2. Crear plan especifico
 const crearPlanEspecifico = async (req, res, next) => {
   try {
-    // Tu logica existente para crear
+    const errorHorario = validarHorarioEvento(req.body.horario);
+    if (errorHorario) {
+      return res.status(400).json({ exito: false, mensaje: errorHorario });
+    }
+
+    // Aquí va tu lógica existente para crear el plan específico en Prisma
   } catch (error) {
     next(error);
   }
@@ -35,7 +68,12 @@ const crearPlanEspecifico = async (req, res, next) => {
 // 3. Modificar plan especifico
 const modificarPlanEspecifico = async (req, res, next) => {
   try {
-    // Tu logica existente para modificar
+    const errorHorario = validarHorarioEvento(req.body.horario);
+    if (errorHorario) {
+      return res.status(400).json({ exito: false, mensaje: errorHorario });
+    }
+
+    // Aquí va tu lógica existente para modificar el plan específico en Prisma
   } catch (error) {
     next(error);
   }
@@ -44,6 +82,7 @@ const modificarPlanEspecifico = async (req, res, next) => {
 // 4. Eliminar plan especifico
 const eliminarPlanEspecifico = async (req, res, next) => {
   try {
+    // Aquí va tu lógica existente para eliminar
   } catch (error) {
     next(error);
   }

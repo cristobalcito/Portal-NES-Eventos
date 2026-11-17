@@ -22,6 +22,13 @@ const unirFechaHora = (fecha, hora) => new Date(`${fecha}T${hora}:00`).toISOStri
 
 const dosDigitos = (n) => String(n).padStart(2, '0');
 
+// Convierte "HH:MM" a minutos totales desde las 00:00 para comparar orden lógico
+const aMinutos = (horaStr) => {
+  if (!horaStr) return null;
+  const [horas, minutos] = horaStr.split(':').map(Number);
+  return horas * 60 + minutos;
+};
+
 // Pasa una fecha guardada a formato YYYY-MM-DD (hora local) para el input date
 const aFechaInput = (valor) => {
   if (!valor) return '';
@@ -82,7 +89,6 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
   // Cargar lista de Planes Base (Catálogo) e Inventario al abrir
   useEffect(() => {
     if (isOpen) {
-      // 1. Cargar desde la ruta exactita del backend: /api/catalogo/planes-base
       fetch(`${API_URL}/api/catalogo/planes-base`)
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP error status: ${res.status}`);
@@ -96,7 +102,6 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
         })
         .catch((err) => console.error("Error al cargar planes base:", err));
 
-      // 2. Cargar Inventario
       fetch(`${API_URL}/api/inventario`)
         .then((res) => res.json())
         .then((data) => setListaInventario(Array.isArray(data) ? data : (data.datos || data.data || [])))
@@ -282,9 +287,25 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
       }
     }
 
+    // Validación de horario (opcional, pero si se llena requiere orden lógico)
     const horas = [formData.horaSalida, formData.horaLlegada, formData.horaVuelta];
     const horasLlenas = horas.filter(Boolean).length;
-    if (horasLlenas > 0 && horasLlenas < 3) return 'Si ingresas horario, completa las tres horas.';
+    if (horasLlenas > 0 && horasLlenas < 3) {
+      return 'Si ingresas horario, debes completar las tres horas (Salida, Llegada y Vuelta).';
+    }
+
+    if (horasLlenas === 3) {
+      const minSalida = aMinutos(formData.horaSalida);
+      const minLlegada = aMinutos(formData.horaLlegada);
+      const minVuelta = aMinutos(formData.horaVuelta);
+
+      if (minLlegada <= minSalida) {
+        return 'La hora de llegada debe ser posterior a la hora de salida.';
+      }
+      if (minVuelta <= minLlegada) {
+        return 'La hora de vuelta debe ser posterior a la hora de llegada.';
+      }
+    }
 
     return '';
   };
@@ -512,15 +533,35 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
             <div style={{ display: 'flex', gap: '10px' }}>
               <div style={{ flex: 1 }}>
                 <label style={labelStyle}>Salida</label>
-                <input type="time" name="horaSalida" value={formData.horaSalida} onChange={handleChange} style={inputStyle} />
+                <input
+                  type="time"
+                  name="horaSalida"
+                  value={formData.horaSalida}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={labelStyle}>Llegada</label>
-                <input type="time" name="horaLlegada" value={formData.horaLlegada} onChange={handleChange} style={inputStyle} />
+                <input
+                  type="time"
+                  name="horaLlegada"
+                  min={formData.horaSalida || undefined}
+                  value={formData.horaLlegada}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
               </div>
               <div style={{ flex: 1 }}>
                 <label style={labelStyle}>Vuelta</label>
-                <input type="time" name="horaVuelta" value={formData.horaVuelta} onChange={handleChange} style={inputStyle} />
+                <input
+                  type="time"
+                  name="horaVuelta"
+                  min={formData.horaLlegada || undefined}
+                  value={formData.horaVuelta}
+                  onChange={handleChange}
+                  style={inputStyle}
+                />
               </div>
             </div>
           </fieldset>
