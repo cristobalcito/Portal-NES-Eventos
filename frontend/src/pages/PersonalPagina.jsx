@@ -1,230 +1,383 @@
 import React, { useState, useEffect } from 'react';
-import ModalPersonalEventual from '../components/ModalPersonalEventual';
+import ModalAgregarEvento from '../components/ModalAgregarEvento.jsx';
+import ModalImportarEventos from '../components/ModalImportarEventos.jsx';
+import ModalWebpayComponente from '../components/ModalWebpayComponente.jsx';
 
-export default function PersonalPagina() {
-  const [personal, setPersonal] = useState([]);
+export default function GestionarEventos() {
   const [eventos, setEventos] = useState([]);
+  const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
   const [busqueda, setBusqueda] = useState('');
-  const [personalSeleccionado, setPersonalSeleccionado] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState('');
-  const [mostrarModal, setMostrarModal] = useState(false);
-
-  // Estados modal asignacion
-  const [mostrarModalAsignar, setMostrarModalAsignar] = useState(false);
-  const [eventoSeleccionadoId, setEventoSeleccionadoId] = useState('');
-  const [rolAsignadoInput, setRolAsignadoInput] = useState('Operativo');
-  const [guardandoAsignacion, setGuardandoAsignacion] = useState(false);
+  const [modalAbierto, setModalAbierto] = useState(false);
   const [mensajeExito, setMensajeExito] = useState('');
+  const [eventoEditando, setEventoEditando] = useState(null);
+  const [eventoAEliminar, setEventoAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState('');
+  const [importarAbierto, setImportarAbierto] = useState(false);
+
+  // Estado para el modal de Asistencia
+  const [eventoAsistencia, setEventoAsistencia] = useState(null);
+  const [confirmadosInput, setConfirmadosInput] = useState(0);
+  const [guardandoAsistencia, setGuardandoAsistencia] = useState(false);
+  const [errorAsistencia, setErrorAsistencia] = useState('');
+
+  // Estados para Pago Webpay del Cliente y Notificaciones de Cancelación
+  const [modalWebpayAbierto, setModalWebpayAbierto] = useState(false);
+  const [eventoAPagar, setEventoAPagar] = useState(null);
+  const [eventosPagados, setEventosPagados] = useState({}); // { [idPE]: comprobante }
+  const [notificacionesCancelacion, setNotificacionesCancelacion] = useState([]);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  const obtenerRut = (p) => {
-    if (!p) return 'No especificado';
-    return (
-      p.rut ||
-      p.Rut ||
-      p.RUT ||
-      p.rutPersona ||
-      p.usuario?.rut ||
-      p.usuario?.Rut ||
-      'No especificado'
-    );
+  // Leer sesión del usuario actual
+  let usuarioActual = null;
+  try {
+    const raw = localStorage.getItem('usuario');
+    if (raw) usuarioActual = JSON.parse(raw);
+  } catch (e) {
+    console.error('Error al leer sesión:', e);
+  }
+
+  const rolActual = (usuarioActual?.rol || '').toUpperCase();
+  const rutActual = (usuarioActual?.rut || usuarioActual?.id || '').toString().trim();
+  const esCliente = rolActual === 'CLIENTE';
+  const esGerenteGeneral = rolActual === 'GERENTE_GENERAL';
+
+  // Verifica si el evento está relacionado por ID/RUT con el cliente logueado
+  const perteneceAlCliente = (evento) => {
+    if (!evento || !esCliente) return false;
+    const rutClienteEvento = (
+      evento.clienteRut ||
+      evento.clienteId ||
+      evento.usuarioRut ||
+      evento.cliente?.rut ||
+      evento.usuario?.rut ||
+      ''
+    ).toString().trim();
+
+    if (!rutClienteEvento) return false;
+    return rutClienteEvento.toLowerCase() === rutActual.toLowerCase();
   };
 
-  const obtenerRol = (p) => {
-    if (!p) return 'No especificado';
-    return (
-      p.rol ||
-      p.Rol ||
-      p.ROL ||
-      p.tipoPersona ||
-      p.usuario?.rol ||
-      'No especificado'
-    );
-  };
+  // Calcula días restantes y evalúa la regla de 1 semana (7 días) antes del evento
+  const evaluarEstadoPagoEvento = (evento) => {
+    if (!evento) return { estado: 'DESCONOCIDO', diasRestantes: 0 };
 
-  const cargarPersonal = () => {
-    setCargando(true);
-    fetch(`${API_URL}/api/personal`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-      },
-    })
-      .then(async (respuesta) => {
-        const datos = await respuesta.json();
-        if (!respuesta.ok) {
-          throw new Error(datos.error || 'No se pudo cargar el personal.');
-        }
-        return Array.isArray(datos) ? datos : (datos.datos || []);
-      })
-      .then((datos) => {
-        setPersonal(datos);
-        if (datos.length > 0 && !personalSeleccionado) {
-          setPersonalSeleccionado(datos[0]);
-        }
-      })
-      .catch((errorCarga) => {
-        console.error('Error al cargar personal:', errorCarga);
-        setError(errorCarga.message);
-        setPersonal([]);
-      })
-      .finally(() => setCargando(false));
+    const id = evento.idPE || evento.id;
+    const pagado = Boolean(eventosPagados[id]) || (evento.estado || '').toUpperCase() === 'PAGADO';
+
+    if (pagado) {
+      return {
+        estado: 'PAGADO',
+        diasRestantes: null,
+        comprobante: eventosPagados[id] || null
+      };
+    }
+
+    if (!evento.fecha) {
+      return { estado: 'PENDIENTE_PAGO', diasRestantes: null };
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const fechaEv = new Date(evento.fecha);
+    fechaEv.setHours(0, 0, 0, 0);
+
+    const diffMs = fechaEv.getTime() - hoy.getTime();
+    const diasRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    // Si falta menos de 1 semana (7 días) y no está pagado -> CANCELADO
+    if (diasRestantes < 7) {
+      return {
+        estado: 'CANCELADO',
+        diasRestantes
+      };
+    }
+
+    return {
+      estado: 'PENDIENTE_PAGO',
+      diasRestantes
+    };
   };
 
   const cargarEventos = () => {
-    fetch(`${API_URL}/api/eventos`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-      },
-    })
-      .then(async (res) => {
-        if (!res.ok) return [];
-        const data = await res.json();
-        return Array.isArray(data) ? data : (data.datos || []);
+    fetch(`${API_URL}/api/eventos`)
+      .then((respuesta) => {
+        if (!respuesta.ok) {
+          throw new Error('Respuesta no válida del servidor');
+        }
+        return respuesta.json();
       })
-      .then((lista) => setEventos(lista))
-      .catch(() => setEventos([]));
+      .then((datos) => {
+        const lista = Array.isArray(datos) ? datos : (datos.datos || []);
+        if (Array.isArray(lista)) {
+          setEventos(lista);
+          setEventoSeleccionado((actual) => {
+            if (!actual) return lista[0] || null;
+            return lista.find((e) => (e.idPE || e.id) === (actual.idPE || actual.id)) || lista[0] || null;
+          });
+        } else {
+          setEventos([]);
+          setEventoSeleccionado(null);
+        }
+      })
+      .catch((error) => {
+        console.error('Error al cargar eventos:', error);
+        setEventos([]);
+        setEventoSeleccionado(null);
+      });
   };
 
   useEffect(() => {
-    cargarPersonal();
     cargarEventos();
-  }, []);
+  }, [API_URL]);
 
-  const personalFiltrado = personal.filter((p) => {
-    const termino = busqueda.toLowerCase().trim();
-    const nombre = (p.nombre || p.Nombre || p.usuario?.nombre || '').toLowerCase();
-    const rol = obtenerRol(p).toLowerCase();
-    const rut = obtenerRut(p).toLowerCase();
+  // Detectar eventos vencidos (< 7 días sin pago) y generar notificaciones para Cliente y Gerente General
+  useEffect(() => {
+    if (!Array.isArray(eventos) || eventos.length === 0) return;
 
-    return nombre.includes(termino) || rol.includes(termino) || rut.includes(termino);
-  });
-
-  const handleEditar = (p) => {
-    setPersonalSeleccionado(p);
-    setMostrarModal(true);
-  };
-
-  const handleAbrirAsignar = (p) => {
-    setPersonalSeleccionado(p);
-    setRolAsignadoInput(p.rol || 'Operativo');
-    setEventoSeleccionadoId('');
-    setMostrarModalAsignar(true);
-  };
-
-  const handleConfirmarAsignacion = async (e) => {
-    e.preventDefault();
-    if (!personalSeleccionado || !eventoSeleccionadoId) {
-      alert('Selecciona un evento para realizar la asignacion.');
-      return;
-    }
-
-    try {
-      setGuardandoAsignacion(true);
-      const rutTrabajador = obtenerRut(personalSeleccionado);
-      const respuesta = await fetch(`${API_URL}/api/personal/asignar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`
-        },
-        body: JSON.stringify({
-          rut: rutTrabajador,
-          idPE: eventoSeleccionadoId,
-          rolAsignado: rolAsignadoInput
-        })
-      });
-
-      const resultado = await respuesta.json();
-      if (!respuesta.ok) {
-        throw new Error(resultado.error || resultado.mensaje || 'Error al asignar el personal.');
-      }
-
-      setMensajeExito(resultado.mensaje || 'Personal asignado correctamente.');
-      setTimeout(() => setMensajeExito(''), 4000);
-      setMostrarModalAsignar(false);
-      cargarPersonal();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setGuardandoAsignacion(false);
-    }
-  };
-
-  const handleEliminar = async (p) => {
-    const rutAEliminar = obtenerRut(p);
-    const nombre = p.nombre || p.Nombre || p.usuario?.nombre || 'este trabajador';
-    const usuarioSesion = JSON.parse(localStorage.getItem('usuario') || '{}');
-
-    if (!window.confirm(`Esta seguro de que desea eliminar a ${nombre} (RUT: ${rutAEliminar})?`)) {
-      return;
-    }
-
-    try {
-      const respuesta = await fetch(`${API_URL}/api/usuarios/${encodeURIComponent(rutAEliminar)}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-          'x-usuario-rut': usuarioSesion.rut || ''
+    const avisos = [];
+    eventos.forEach((ev) => {
+      const evalPago = evaluarEstadoPagoEvento(ev);
+      if (evalPago.estado === 'CANCELADO') {
+        if (esGerenteGeneral || (esCliente && perteneceAlCliente(ev))) {
+          const fechaTexto = ev.fecha ? new Date(ev.fecha).toLocaleDateString('es-CL') : 'sin fecha';
+          avisos.push({
+            id: ev.idPE || ev.id,
+            descripcion: ev.descripcion,
+            fecha: fechaTexto,
+            diasRestantes: evalPago.diasRestantes
+          });
         }
-      });
-
-      const resultado = await respuesta.json();
-      if (!respuesta.ok || (!resultado.exito && !resultado.success)) {
-        throw new Error(resultado.mensaje || 'Error al eliminar el trabajador.');
       }
+    });
 
-      alert('Trabajador eliminado correctamente de la base de datos.');
-      const nuevaLista = personal.filter((item) => obtenerRut(item) !== rutAEliminar);
-      setPersonal(nuevaLista);
+    setNotificacionesCancelacion(avisos);
+  }, [eventos, eventosPagados, esCliente, esGerenteGeneral]);
 
-      if (personalSeleccionado && obtenerRut(personalSeleccionado) === rutAEliminar) {
-        setPersonalSeleccionado(nuevaLista[0] || null);
-      }
-    } catch (err) {
-      console.error('Error al eliminar personal:', err);
-      alert(err.message);
-    }
-  };
-
-  const handleGuardarNuevoPersonal = async (formulario) => {
-    if (!personalSeleccionado) {
-      alert('Primero debes seleccionar un trabajador.');
+  const abrirPagoWebpayCliente = (evento) => {
+    if (!esCliente) {
+      alert('Acceso denegado: Solo un Cliente puede pagar eventos.');
       return;
     }
 
-    try {
-      const rutTrabajador = obtenerRut(personalSeleccionado);
-      const usuarioSesion = JSON.parse(localStorage.getItem('usuario') || '{}');
+    if (!perteneceAlCliente(evento)) {
+      alert('No puedes pagar este evento porque no está asociado a tu ID de cliente.');
+      return;
+    }
 
-      const respuesta = await fetch(
-        `${API_URL}/api/personal-externo/${encodeURIComponent(rutTrabajador)}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-            'x-usuario-rut': usuarioSesion.rut || ''
-          },
-          body: JSON.stringify(formulario)
-        }
+    const evalPago = evaluarEstadoPagoEvento(evento);
+    if (evalPago.estado === 'PAGADO') {
+      alert('Este evento ya se encuentra pagado.');
+      return;
+    }
+
+    if (evalPago.estado === 'CANCELADO') {
+      alert(
+        'Este evento fue CANCELADO automáticamente porque el pago debía realizarse con al menos 1 semana (7 días) de anticipación. Se ha notificado a usted y al Gerente General.'
       );
+      return;
+    }
 
-      const resultado = await respuesta.json();
-      if (!respuesta.ok) {
-        throw new Error(resultado.mensaje || resultado.error || 'Error al actualizar la ficha.');
-      }
+    setEventoAPagar(evento);
+    setModalWebpayAbierto(true);
+  };
 
-      alert('Ficha actualizada con exito.');
-      cargarPersonal();
-      setMostrarModal(false);
-    } catch (error) {
-      console.error('Error al actualizar personal eventual:', error);
-      alert(error.message);
+  const handlePagoEventoCompletado = (comprobante) => {
+    if (!eventoAPagar) return;
+    const id = eventoAPagar.idPE || eventoAPagar.id;
+
+    setEventosPagados((prev) => ({
+      ...prev,
+      [id]: comprobante
+    }));
+
+    setEventos((prev) =>
+      prev.map((ev) => ((ev.idPE || ev.id) === id ? { ...ev, estado: 'PAGADO' } : ev))
+    );
+
+    if (eventoSeleccionado && (eventoSeleccionado.idPE || eventoSeleccionado.id) === id) {
+      setEventoSeleccionado((prev) => ({ ...prev, estado: 'PAGADO' }));
+    }
+
+    mostrarMensaje(
+      `✅ Pago aprobado para "${eventoAPagar.descripcion}" por $${Number(comprobante.monto).toLocaleString('es-CL')} CLP (Cód. Autorización: ${comprobante.codigoAutorizacion}).`,
+      6000
+    );
+  };
+
+  const crearEvento = async (datosEvento) => {
+    const payload = esCliente
+      ? { ...datosEvento, clienteRut: rutActual }
+      : datosEvento;
+
+    const respuesta = await fetch(`${API_URL}/api/eventos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'No se pudo crear el evento');
+    }
+
+    const nuevo = datos.datos || datos;
+    setEventos((anteriores) =>
+      [...anteriores, nuevo].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    );
+    setEventoSeleccionado(nuevo);
+    setBusqueda('');
+    mostrarMensaje(datos.mensaje || `Evento "${nuevo.descripcion}" creado correctamente.`);
+  };
+
+  const mostrarMensaje = (texto, duracion = 3000) => {
+    setMensajeExito(texto);
+    setTimeout(() => setMensajeExito(''), duracion);
+  };
+
+  const editarEvento = async (datosEvento) => {
+    const id = eventoEditando.idPE || eventoEditando.id;
+    const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datosEvento)
+    });
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'No se pudo editar el evento');
+    }
+
+    const editado = datos.evento || datos.datos || datos;
+    setEventos((anteriores) =>
+      anteriores
+        .map((e) => ((e.idPE || e.id) === (editado.idPE || editado.id) ? editado : e))
+        .sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    );
+    setEventoSeleccionado(editado);
+
+    const avisos = Array.isArray(datos.avisos) && datos.avisos.length > 0 ? ` ${datos.avisos.join(' ')}` : '';
+    mostrarMensaje(datos.mensaje || `Evento "${editado.descripcion}" actualizado.${avisos}`, avisos ? 6000 : 3000);
+  };
+
+  const handleAbrirAsistencia = (evento) => {
+    setErrorAsistencia('');
+    setEventoAsistencia(evento);
+    setConfirmadosInput(evento.asistentesConfirmados || 0);
+  };
+
+  const handleGuardarAsistencia = async (e) => {
+    e.preventDefault();
+    if (!eventoAsistencia) return;
+
+    const id = eventoAsistencia.idPE || eventoAsistencia.id;
+    try {
+      setGuardandoAsistencia(true);
+      setErrorAsistencia('');
+      const res = await fetch(`${API_URL}/api/eventos/${id}/asistencia`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asistentesConfirmados: Number(confirmadosInput) })
+      });
+
+      const datos = await res.json();
+      if (!res.ok) throw new Error(datos.mensaje || 'Error al actualizar asistencia');
+
+      const eventoActualizado = datos.evento || datos;
+      setEventos((anteriores) =>
+        anteriores.map((e) => ((e.idPE || e.id) === id ? eventoActualizado : e))
+      );
+      setEventoSeleccionado(eventoActualizado);
+      setEventoAsistencia(null);
+      mostrarMensaje(`Asistencia de "${eventoActualizado.descripcion}" actualizada.`);
+    } catch (err) {
+      setErrorAsistencia(err.message);
+    } finally {
+      setGuardandoAsistencia(false);
     }
   };
+
+  const confirmarEliminar = async () => {
+    const id = eventoAEliminar.idPE || eventoAEliminar.id;
+    try {
+      setEliminando(true);
+      setErrorEliminar('');
+      const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, { method: 'DELETE' });
+      const datos = await respuesta.json().catch(() => ({}));
+      if (!respuesta.ok) {
+        throw new Error(datos.mensaje || 'No se pudo eliminar el evento');
+      }
+
+      const restantes = eventos.filter((e) => (e.idPE || e.id) !== id);
+      setEventos(restantes);
+      if (eventoSeleccionado && (eventoSeleccionado.idPE || eventoSeleccionado.id) === id) {
+        setEventoSeleccionado(restantes[0] || null);
+      }
+      mostrarMensaje(datos.mensaje || `Evento "${eventoAEliminar.descripcion}" eliminado.`);
+      setEventoAEliminar(null);
+    } catch (err) {
+      setErrorEliminar(err.message);
+    } finally {
+      setEliminando(false);
+    }
+  };
+
+  const importarEventos = async (eventosAImportar) => {
+    const respuesta = await fetch(`${API_URL}/api/eventos/importar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventos: eventosAImportar })
+    });
+
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'No se pudieron importar los eventos');
+    }
+
+    setEventos((anteriores) =>
+      [...anteriores, ...datos.creados].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
+    );
+
+    const rechazados = datos.errores.length > 0 ? ` ${datos.errores.length} fila(s) no se importaron por errores.` : '';
+    mostrarMensaje(`Se importaron ${datos.creados.length} evento(s).${rechazados}`, 5000);
+  };
+
+  const abrirAgregar = () => {
+    setEventoEditando(null);
+    setModalAbierto(true);
+  };
+
+  const abrirEditar = (evento) => {
+    setEventoEditando(evento);
+    setModalAbierto(true);
+  };
+
+  const cerrarModal = () => {
+    setModalAbierto(false);
+    setEventoEditando(null);
+  };
+
+  const formatearHora = (fechaHora) =>
+    new Date(fechaHora).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
+  const listaEventos = Array.isArray(eventos) ? eventos : [];
+  const textoBusqueda = busqueda.toLowerCase();
+
+  // Si es Cliente, solo mostramos los eventos relacionados por ID/RUT con él
+  const eventosVisiblesPorRol = esCliente
+    ? listaEventos.filter((ev) => perteneceAlCliente(ev))
+    : listaEventos;
+
+  const eventosFiltrados = eventosVisiblesPorRol.filter((evento) =>
+    [evento.descripcion, evento.lugar, evento.personal].some((campo) =>
+      (campo || '').toLowerCase().includes(textoBusqueda)
+    )
+  );
+
+  const evalSeleccionado = eventoSeleccionado ? evaluarEstadoPagoEvento(eventoSeleccionado) : null;
+  const esEventoDelClienteSeleccionado = eventoSeleccionado ? perteneceAlCliente(eventoSeleccionado) : false;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e5e5e5', fontFamily: 'sans-serif' }}>
@@ -233,7 +386,7 @@ export default function PersonalPagina() {
         
         {/* Barra superior */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          
+
           <div style={{ 
             flex: 1, 
             maxWidth: '700px', 
@@ -246,7 +399,7 @@ export default function PersonalPagina() {
           }}>
             <input 
               type="text" 
-              placeholder="Buscar persona..." 
+              placeholder={esCliente ? 'Buscar en mis eventos...' : 'Buscar eventos...'}
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               style={{ 
@@ -259,213 +412,409 @@ export default function PersonalPagina() {
                 fontSize: '16px'
               }} 
             />
-            {busqueda && (
-              <button 
-                type="button"
-                onClick={() => setBusqueda('')} 
-                style={{ background: 'none', border: 'none', fontSize: '14px', cursor: 'pointer', color: '#888' }}
-              >
-                Limpiar
-              </button>
-            )}
           </div>
           
-          <div style={{ display: 'flex', gap: '10px', marginLeft: '20px' }}>
-            <button 
-              type="button"
-              onClick={() => {
-                if (personalSeleccionado) {
-                  setMostrarModal(true);
-                } else {
-                  alert('Selecciona una persona de la lista primero.');
-                }
-              }}
-              style={{ 
+          {!esCliente && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '20px' }}>
+              <button onClick={abrirAgregar} style={{ 
                 backgroundColor: '#8a5b96', color: 'white', border: 'none', 
-                padding: '8px 18px', fontSize: '14px', borderRadius: '25px', 
-                fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-              }}
-            >
-              Completar ficha laboral
-            </button>
-          </div>
+                padding: '12px 30px', borderRadius: '25px', fontWeight: 'bold',
+                cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                Agregar evento
+              </button>
+              <button onClick={() => setImportarAbierto(true)} style={{ 
+                backgroundColor: '#8a5b96', color: 'white', border: 'none', 
+                padding: '12px 30px', borderRadius: '25px', fontWeight: 'bold',
+                cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                Importar eventos
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* Notificaciones de cancelación por falta de pago (< 7 días antes del evento) */}
+        {notificacionesCancelacion.length > 0 && (
+          <div style={{
+            backgroundColor: '#fee2e2',
+            border: '1px solid #ef4444',
+            color: '#991b1b',
+            padding: '12px 18px',
+            borderRadius: '14px',
+            marginBottom: '15px',
+            fontSize: '14px'
+          }}>
+            <strong>🔔 Notificación de Cancelación Automática (Cliente y Gerente General):</strong>
+            <ul style={{ margin: '6px 0 0 0', paddingLeft: '20px' }}>
+              {notificacionesCancelacion.map((aviso) => (
+                <li key={aviso.id}>
+                  El evento <strong>"{aviso.descripcion}"</strong> (fecha: {aviso.fecha}) ha sido marcado como <strong>CANCELADO</strong> por no registrar pago con al menos 1 semana (7 días) de anticipación.
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {mensajeExito && (
-          <div style={{ backgroundColor: '#d1e7dd', color: '#0f5132', padding: '12px 20px', borderRadius: '15px', marginBottom: '15px', fontWeight: 'bold' }}>
+          <div style={{
+            backgroundColor: '#e6f4ea', color: '#1e6b34', padding: '10px 20px',
+            borderRadius: '15px', marginBottom: '15px', fontWeight: 'bold', textAlign: 'center'
+          }}>
             {mensajeExito}
           </div>
         )}
 
-        {/* Lista de Personal */}
+        {/* Lista de Eventos */}
         <div style={{ 
-          backgroundColor: '#8a5b96', 
-          padding: '20px', 
-          border: '3px solid black', 
-          flex: 1, 
-          overflowY: 'auto',
-          marginBottom: '20px'
+          backgroundColor: '#8a5b96', padding: '20px', border: '3px solid black', 
+          flex: 1, overflowY: 'auto', marginBottom: '20px'
         }}>
-          {cargando ? (
-            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>Cargando personal desde la base de datos...</p>
-          ) : error ? (
-            <p role="alert" style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>{error}</p>
-          ) : personalFiltrado.length === 0 ? (
+          {eventosVisiblesPorRol.length === 0 ? (
             <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>
-              {busqueda ? `No se encontraron resultados para "${busqueda}"` : 'No hay personal registrado.'}
+              {esCliente
+                ? 'No tienes eventos asociados a tu cuenta.'
+                : 'No hay eventos registrados.'}
+            </p>
+          ) : eventosFiltrados.length === 0 ? (
+            <p style={{ color: 'white', textAlign: 'center', fontSize: '18px' }}>
+              No hay eventos que coincidan con "{busqueda}".
             </p>
           ) : (
-            personalFiltrado.map((p, index) => (
-              <div 
-                key={p.id || obtenerRut(p) || index} 
-                onClick={() => setPersonalSeleccionado(p)}
-                style={{ 
-                  backgroundColor: '#d499a7', 
-                  borderRadius: '30px', 
-                  padding: '15px 25px', 
-                  marginBottom: '15px', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  border: '1px solid black',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
-                  cursor: 'pointer'
-                }}
-              >
-                <span style={{ color: 'white', fontWeight: 'bold', fontSize: '18px', flex: 1, textAlign: 'center' }}>
-                  {p.nombre || p.Nombre || p.usuario?.nombre || 'Sin nombre'} | {obtenerRol(p)} | {p.estado || p.disponibilidad || 'Disponible'}
-                </span>
-                
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    title="Asignar a evento"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAbrirAsignar(p);
-                    }} 
-                    style={{ backgroundColor: 'white', color: '#1e40af', border: 'none', borderRadius: '15px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    Asignar a Evento
-                  </button>
-                  <button 
-                    title="Editar ficha"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditar(p);
-                    }} 
-                    style={{ backgroundColor: 'white', color: '#523354', border: 'none', borderRadius: '15px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    Editar
-                  </button>
-                  <button 
-                    title="Eliminar usuario"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEliminar(p);
-                    }} 
-                    style={{ backgroundColor: 'white', color: '#c0392b', border: 'none', borderRadius: '15px', padding: '5px 12px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                  >
-                    Eliminar
-                  </button>
+            eventosFiltrados.map((evento, index) => {
+              const invitados = evento.numPersonas || 0;
+              const confirmados = evento.asistentesConfirmados || 0;
+              const evalPago = evaluarEstadoPagoEvento(evento);
+              const esMioCliente = perteneceAlCliente(evento);
+
+              const colorFondoFila =
+                evalPago.estado === 'CANCELADO'
+                  ? '#991b1b'
+                  : evalPago.estado === 'PAGADO'
+                  ? '#166534'
+                  : evento.estado === 'PENDIENTE'
+                  ? '#d97706'
+                  : '#d499a7';
+
+              return (
+                <div 
+                  key={evento.idPE || evento.id || index} 
+                  onClick={() => setEventoSeleccionado(evento)}
+                  style={{ 
+                    backgroundColor: colorFondoFila,
+                    borderRadius: '30px',
+                    padding: '15px 25px', 
+                    marginBottom: '15px',
+                    display: 'flex',
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    border: '1px solid black',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                    cursor: 'pointer' 
+                  }}
+                >
+                  <span style={{ color: 'white', fontWeight: 'bold', fontSize: '16px', flex: 1, textAlign: 'center' }}>
+                    {evalPago.estado === 'CANCELADO'
+                      ? '[CANCELADO - SIN PAGO] '
+                      : evalPago.estado === 'PAGADO'
+                      ? '[PAGADO ✓] '
+                      : evento.estado === 'PENDIENTE'
+                      ? '[PENDIENTE] '
+                      : ''}
+                    {evento.fecha ? new Date(evento.fecha).toLocaleDateString() : 'Sin fecha'} : {evento.descripcion} | {evento.lugar || 'Sin lugar'} | Asistencia: {confirmados} / {invitados}
+                  </span>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {/* Botón exclusivo para Cliente dueño del evento */}
+                    {esCliente && esMioCliente && evalPago.estado === 'PENDIENTE_PAGO' && (
+                      <button
+                        title="Pagar evento con Webpay"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          abrirPagoWebpayCliente(evento);
+                        }}
+                        style={{
+                          backgroundColor: '#15803d',
+                          color: 'white',
+                          border: '1px solid white',
+                          borderRadius: '15px',
+                          padding: '6px 14px',
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        💳 Pagar Evento
+                      </button>
+                    )}
+
+                    {!esCliente && (
+                      <>
+                        <button
+                          title="Controlar asistencia"
+                          onClick={(e) => { e.stopPropagation(); handleAbrirAsistencia(evento); }}
+                          style={{ backgroundColor: 'white', color: '#1e40af', border: '1px solid #1e40af', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          Asistencia
+                        </button>
+                        <button
+                          title="Editar evento"
+                          onClick={(e) => { e.stopPropagation(); abrirEditar(evento); }}
+                          style={{ backgroundColor: 'white', color: '#523354', border: '1px solid #8a5b96', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          title="Eliminar evento"
+                          onClick={(e) => { e.stopPropagation(); setErrorEliminar(''); setEventoAEliminar(evento); }}
+                          style={{ backgroundColor: 'white', color: '#c0392b', border: '1px solid #c0392b', borderRadius: '15px', padding: '5px 12px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
-        {/* Tarjeta inferior de Detalles */}
+        {/* Tarjeta de Detalles */}
         <div style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '15px', 
-          padding: '20px 30px', 
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          minHeight: '150px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
+          backgroundColor: 'white', borderRadius: '15px', padding: '20px 30px', 
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)', minHeight: '150px'
         }}>
-          {personalSeleccionado ? (
-            <div style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {eventoSeleccionado ? (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                 <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
-                  {personalSeleccionado.nombre || personalSeleccionado.Nombre || personalSeleccionado.usuario?.nombre || 'Sin nombre'}
+                  {eventoSeleccionado.descripcion}
+                  {evalSeleccionado && (
+                    <span style={{
+                      fontSize: '14px',
+                      marginLeft: '12px',
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      backgroundColor:
+                        evalSeleccionado.estado === 'PAGADO'
+                          ? '#dcfce7'
+                          : evalSeleccionado.estado === 'CANCELADO'
+                          ? '#fee2e2'
+                          : '#fef3c7',
+                      color:
+                        evalSeleccionado.estado === 'PAGADO'
+                          ? '#15803d'
+                          : evalSeleccionado.estado === 'CANCELADO'
+                          ? '#dc2626'
+                          : '#b45309'
+                    }}>
+                      {evalSeleccionado.estado === 'PAGADO'
+                        ? 'PAGADO ✓'
+                        : evalSeleccionado.estado === 'CANCELADO'
+                        ? 'CANCELADO (Plazo de 1 semana vencido)'
+                        : `PENDIENTE DE PAGO (Faltan ${evalSeleccionado.diasRestantes ?? '?'} días)`}
+                    </span>
+                  )}
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => handleAbrirAsignar(personalSeleccionado)}
-                  style={{ backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Asignar a Evento
-                </button>
-              </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  gap: '18px 30px',
-                  fontSize: '16px',
-                  lineHeight: '1.5'
-                }}
-              >
-                <div>
-                  <strong>RUT:</strong>
-                  <div>{obtenerRut(personalSeleccionado)}</div>
-                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {esCliente && esEventoDelClienteSeleccionado && evalSeleccionado?.estado === 'PENDIENTE_PAGO' && (
+                    <button
+                      onClick={() => abrirPagoWebpayCliente(eventoSeleccionado)}
+                      style={{
+                        backgroundColor: '#6b1d5c',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 22px',
+                        borderRadius: '15px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '15px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      💳 Pagar Evento en Webpay (${Number(eventoSeleccionado.costoTotal || 0).toLocaleString('es-CL')})
+                    </button>
+                  )}
 
-                <div>
-                  <strong>Rol Base:</strong>
-                  <div>{obtenerRol(personalSeleccionado)}</div>
-                </div>
-
-                <div>
-                  <strong>Telefono:</strong>
-                  <div>{personalSeleccionado.fono || personalSeleccionado.telefono || 'No especificado'}</div>
-                </div>
-
-                <div>
-                  <strong>Estado / Disponibilidad:</strong>
-                  <div>
-                    {personalSeleccionado.estado || personalSeleccionado.disponibilidad || 'No especificada'}
-                  </div>
-                </div>
-
-                <div>
-                  <strong>Talla de uniforme:</strong>
-                  <div>{personalSeleccionado.tallaDeRopa || 'No especificada'}</div>
-                </div>
-
-                <div>
-                  <strong>Evaluacion de desempeno:</strong>
-                  <div>
-                    {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
-                  </div>
-                </div>
-
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <strong>Experiencia:</strong>
-                  <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
+                  {!esCliente && (
+                    <button
+                      onClick={() => handleAbrirAsistencia(eventoSeleccionado)}
+                      style={{ backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      Registrar Asistencia Confirmada
+                    </button>
+                  )}
                 </div>
               </div>
-            </div>
+
+              {evalSeleccionado?.estado === 'CANCELADO' && (
+                <div style={{
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  marginBottom: '12px',
+                  fontSize: '14px'
+                }}>
+                  ⚠️ <strong>Evento Cancelado:</strong> El pago debía realizarse al menos 1 semana (7 días) antes de la fecha del evento. Esta cancelación ya fue notificada al Cliente y al Gerente General.
+                </div>
+              )}
+
+              <div style={{ fontSize: '16px', lineHeight: '1.6' }}>
+                <p style={{ margin: '5px 0' }}>Organizador(a) / Personal: {eventoSeleccionado.personal || 'No asignado'}</p>
+                <p style={{ margin: '5px 0' }}>Ubicación: {eventoSeleccionado.lugar || 'No especificado'}</p>
+                <p style={{ margin: '5px 0' }}>
+                  Fecha: {eventoSeleccionado.fecha ? new Date(eventoSeleccionado.fecha).toLocaleDateString() : 'Sin fecha'}
+                </p>
+                {eventoSeleccionado.horario && (
+                  <p style={{ margin: '5px 0' }}>
+                    Horario: salida {formatearHora(eventoSeleccionado.horario.horaSalida)} · llegada {formatearHora(eventoSeleccionado.horario.horaLlegada)} · vuelta {formatearHora(eventoSeleccionado.horario.horaVuelta)}
+                  </p>
+                )}
+                <p style={{ margin: '5px 0' }}>
+                  Costo total: {eventoSeleccionado.costoTotal != null
+                    ? `$${Number(eventoSeleccionado.costoTotal).toLocaleString('es-CL')}`
+                    : 'No especificado'}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  Invitados Totales: <span style={{ fontWeight: 'bold' }}>{eventoSeleccionado.numPersonas || 0} personas</span>
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  Asistentes Confirmados: <span style={{ fontWeight: 'bold', color: '#15803d' }}>{eventoSeleccionado.asistentesConfirmados || 0} personas</span>
+                  {eventoSeleccionado.numPersonas > 0 && (
+                    <span style={{ fontSize: '14px', marginLeft: '8px', color: '#666' }}>
+                      ({Math.round(((eventoSeleccionado.asistentesConfirmados || 0) / eventoSeleccionado.numPersonas) * 100)}% de asistencia)
+                    </span>
+                  )}
+                </p>
+              </div>
+            </>
           ) : (
-            <p style={{ color: '#666', fontStyle: 'italic' }}>Selecciona una persona para ver sus detalles</p>
+            <p style={{ color: '#666' }}>Selecciona un evento de la lista para ver sus detalles.</p>
           )}
         </div>
         
       </main>
 
-      <ModalPersonalEventual
-        isOpen={mostrarModal}
-        personalSeleccionado={personalSeleccionado}
-        onClose={() => setMostrarModal(false)}
-        onGuardar={handleGuardarNuevoPersonal}
+      {/* Modal Webpay para Cliente */}
+      <ModalWebpayComponente
+        abierto={modalWebpayAbierto}
+        alCerrar={() => {
+          setModalWebpayAbierto(false);
+          setEventoAPagar(null);
+        }}
+        tipoPago="EVENTO"
+        monto={eventoAPagar ? Number(eventoAPagar.costoTotal || 0) : 0}
+        concepto={
+          eventoAPagar
+            ? `Evento #${eventoAPagar.idPE || eventoAPagar.id} - ${eventoAPagar.descripcion}`
+            : 'Pago de Evento'
+        }
+        alCompletarPago={handlePagoEventoCompletado}
       />
 
-      {/* Modal Asignar a Evento */}
-      {mostrarModalAsignar && personalSeleccionado && (
+      <ModalImportarEventos
+        isOpen={importarAbierto}
+        onClose={() => setImportarAbierto(false)}
+        onImportar={importarEventos}
+      />
+
+      <ModalAgregarEvento
+        isOpen={modalAbierto}
+        eventoInicial={eventoEditando}
+        onClose={cerrarModal}
+        onGuardar={eventoEditando ? editarEvento : crearEvento}
+      />
+
+      {/* Modal Control Asistencia Confirmada */}
+      {eventoAsistencia && (
         <div
-          onClick={() => !guardandoAsignacion && setMostrarModalAsignar(false)}
+          onClick={() => !guardandoAsistencia && setEventoAsistencia(null)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+            justifyContent: 'center', alignItems: 'center', zIndex: 1000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white', padding: '25px 30px', borderRadius: '20px',
+              maxWidth: '420px', width: '90%', boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: '22px' }}>Confirmación de Asistencia</h2>
+            <p style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#666' }}>
+              Evento: <strong>{eventoAsistencia.descripcion}</strong>
+            </p>
+
+            <form onSubmit={handleGuardarAsistencia}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Invitados Programados:
+                </label>
+                <input
+                  type="text"
+                  value={`${eventoAsistencia.numPersonas || 0} personas`}
+                  disabled
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', backgroundColor: '#f3f4f6', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+                  Asistentes Confirmados / Reales:
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={eventoAsistencia.numPersonas || 0}
+                  value={confirmadosInput}
+                  onChange={(e) => setConfirmadosInput(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  required
+                />
+              </div>
+
+              {errorAsistencia && (
+                <p style={{ margin: '0 0 15px 0', color: '#b3261e', backgroundColor: '#fdecea', padding: '8px 12px', borderRadius: '10px', fontSize: '14px' }}>
+                  {errorAsistencia}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEventoAsistencia(null)}
+                  disabled={guardandoAsistencia}
+                  style={{ backgroundColor: '#aaa', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoAsistencia}
+                  style={{
+                    backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '10px 25px',
+                    borderRadius: '20px', fontWeight: 'bold', cursor: guardandoAsistencia ? 'wait' : 'pointer',
+                    opacity: guardandoAsistencia ? 0.7 : 1
+                  }}
+                >
+                  {guardandoAsistencia ? 'Guardando...' : 'Guardar Asistencia'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación para eliminar */}
+      {eventoAEliminar && (
+        <div
+          onClick={() => !eliminando && setEventoAEliminar(null)}
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -475,71 +824,43 @@ export default function PersonalPagina() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: 'white', borderRadius: '20px', width: '90%', maxWidth: '450px',
+              backgroundColor: 'white', borderRadius: '20px', width: '90%', maxWidth: '420px',
               padding: '25px 30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', boxSizing: 'border-box'
             }}
           >
-            <h2 style={{ margin: '0 0 10px 0', color: '#1e40af', fontSize: '22px' }}>Asignar a Evento</h2>
-            <p style={{ margin: '0 0 15px 0', fontSize: '14px', color: '#666' }}>
-              Trabajador: <strong>{personalSeleccionado.nombre || obtenerRut(personalSeleccionado)}</strong>
+            <h2 style={{ margin: '0 0 10px 0', color: '#523354', fontSize: '22px' }}>Eliminar evento</h2>
+            <p style={{ margin: '0 0 15px 0', fontSize: '15px', lineHeight: 1.5 }}>
+              ¿Seguro que quieres eliminar <strong>"{eventoAEliminar.descripcion}"</strong>? Esta acción no se puede deshacer.
             </p>
 
-            <form onSubmit={handleConfirmarAsignacion}>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
-                  Seleccionar Evento:
-                </label>
-                <select
-                  value={eventoSeleccionadoId}
-                  onChange={(e) => setEventoSeleccionadoId(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-                  required
-                >
-                  <option value="">-- Selecciona un evento --</option>
-                  {eventos.map((ev) => (
-                    <option key={ev.idPE || ev.id} value={ev.idPE || ev.id}>
-                      {ev.descripcion} ({ev.fecha ? new Date(ev.fecha).toLocaleDateString() : 'Sin fecha'})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {errorEliminar && (
+              <p style={{ margin: '0 0 15px 0', color: '#b3261e', backgroundColor: '#fdecea', padding: '8px 12px', borderRadius: '10px', fontSize: '14px' }}>
+                {errorEliminar}
+              </p>
+            )}
 
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '14px' }}>
-                  Rol en el Evento:
-                </label>
-                <input
-                  type="text"
-                  value={rolAsignadoInput}
-                  onChange={(e) => setRolAsignadoInput(e.target.value)}
-                  placeholder="Ej. Garzon, Chofer, Tecnico"
-                  style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #ccc', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setMostrarModalAsignar(false)}
-                  disabled={guardandoAsignacion}
-                  style={{ backgroundColor: '#aaa', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardandoAsignacion}
-                  style={{
-                    backgroundColor: '#1e40af', color: 'white', border: 'none', padding: '10px 25px',
-                    borderRadius: '20px', fontWeight: 'bold', cursor: guardandoAsignacion ? 'wait' : 'pointer',
-                    opacity: guardandoAsignacion ? 0.7 : 1
-                  }}
-                >
-                  {guardandoAsignacion ? 'Asignando...' : 'Confirmar Asignacion'}
-                </button>
-              </div>
-            </form>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setEventoAEliminar(null)}
+                disabled={eliminando}
+                style={{ backgroundColor: '#aaa', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarEliminar}
+                disabled={eliminando}
+                style={{
+                  backgroundColor: '#c0392b', color: 'white', border: 'none', padding: '10px 25px',
+                  borderRadius: '20px', fontWeight: 'bold', cursor: eliminando ? 'wait' : 'pointer',
+                  opacity: eliminando ? 0.7 : 1
+                }}
+              >
+                {eliminando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
