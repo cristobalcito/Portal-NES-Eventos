@@ -45,6 +45,15 @@ const obtenerPlanesEspecificos = async (req, res, next) => {
         fecha: 'asc'
       }
     });
+    const rolUsuario = (req.usuario?.rol || req.usuario?.tipo || '').toUpperCase();
+    if (rolUsuario === 'CLIENTE' || req.usuario?.cliente) {
+      const disponibilidad = planes.map((plan) => ({
+        idPE: plan.idPE,
+        fecha: plan.fecha,
+        ocupado: true
+      }));
+      return res.status(200).json(disponibilidad);
+    }
     res.status(200).json(planes);
   } catch (error) {
     next(error);
