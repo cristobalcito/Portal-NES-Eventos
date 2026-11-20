@@ -341,8 +341,8 @@ export default function ModalAgregarEvento({ isOpen, onClose, onGuardar, eventoI
     try {
       setGuardando(true);
       setError('');
-      await onGuardar(datosEvento);
-      onClose();
+      const resultado = await onGuardar(datosEvento);
+      if (resultado !== false) onClose();
     } catch (err) {
       setError(err.message || 'No se pudo guardar el evento.');
     } finally {
