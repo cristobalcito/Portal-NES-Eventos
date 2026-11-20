@@ -65,7 +65,7 @@ const validarDatosEvento = (body) => {
       lugar: lugar.trim(),
       fecha: new Date(fecha),
       numPersonas: personas,
-      asistentesConfirmados: confirmados,
+      ...(asistentesConfirmados !== undefined && { personasConfirmadas: confirmados }),
       personal: esTextoValido(personal) ? personal.trim() : 'No asignado',
       costoTotal: costo
     },
@@ -130,26 +130,59 @@ const actualizarEvento = async (req, res) => {
       return res.status(400).json({ mensaje: errores.join(' '), errores });
     }
 
+    const usuario = await prisma.usuario.findUnique({
+      where: { rut: req.usuario.rut },
+      select: { gerenteGeneral: true }
+    });
+    const rol = usuario?.gerenteGeneral ? 'GERENTE_GENERAL' : null;
+
     const diasRestantes = calcularDiasRestantes(eventoActual.fecha);
     const avisos = [];
+    const advertencias = [];
 
     if (!mismoDia(eventoActual.fecha, datos.fecha)) {
-      const regla = reglasEventos.calcularCambioFecha(diasRestantes);
-      if (!regla.permitido) return res.status(400).json({ mensaje: regla.mensaje });
+      const regla = reglasEventos.calcularCambioFecha(diasRestantes, rol);
+
+      if (!regla.permitido) {
+        return res.status(400).json({ mensaje: regla.mensaje });
+      }
+
       if (regla.recargo > 0) {
         datos.costoTotal = Math.round(datos.costoTotal * (1 + regla.recargo));
       }
-      avisos.push(regla.mensaje);
+
+      if (regla.requiereConfirmacion) {
+        advertencias.push(regla.mensaje);
+      } else {
+        avisos.push(regla.mensaje);
+      }
     }
 
     if (eventoActual.numPersonas !== datos.numPersonas) {
       const regla = reglasEventos.calcularCambioInvitados(
         diasRestantes,
         eventoActual.numPersonas,
-        datos.numPersonas
+        datos.numPersonas,
+        rol
       );
-      if (!regla.permitido) return res.status(400).json({ mensaje: regla.mensaje });
-      avisos.push(regla.mensaje);
+
+      if (!regla.permitido) {
+        return res.status(400).json({ mensaje: regla.mensaje });
+      }
+
+      if (regla.requiereConfirmacion) {
+        advertencias.push(regla.mensaje);
+      } else {
+        avisos.push(regla.mensaje);
+      }
+    }
+
+    if (advertencias.length > 0 && req.body.confirmarFueraDePlazo !== true) {
+      return res.status(409).json({
+        requiereConfirmacion: true,
+        mensaje: advertencias.join('\n'),
+        advertencias
+      });
     }
 
     let cambioHorario;

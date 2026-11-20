@@ -80,17 +80,53 @@ export default function GestionarEventos() {
     setTimeout(() => setMensajeExito(''), duracion);
   };
 
+    const dialogoFueraDePlazo = React.useRef(null);
+  const [mensajeFueraDePlazo, setMensajeFueraDePlazo] = useState('');
+
+  const pedirConfirmacionFueraDePlazo = (mensaje) => {
+    const dialogo = dialogoFueraDePlazo.current;
+    setMensajeFueraDePlazo(mensaje);
+    dialogo.returnValue = 'cancelar';
+
+    return new Promise((resolver) => {
+      dialogo.addEventListener(
+        'close',
+        () => resolver(dialogo.returnValue === 'confirmar'),
+        { once: true }
+      );
+      dialogo.showModal();
+    });
+  };
+
   const editarEvento = async (datosEvento) => {
     const id = eventoEditando.idPE || eventoEditando.id;
-    const respuesta = await fetch(`${API_URL}/api/eventos/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(datosEvento)
-    });
+    const enviarEdicion = (datos) =>
+      fetch(`${API_URL}/api/eventos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(datos)
+      });
 
-    const datos = await respuesta.json().catch(() => ({}));
+    let respuesta = await enviarEdicion(datosEvento);
+    let datos = await respuesta.json().catch(() => ({}));
+
+    if (respuesta.status === 409 && datos.requiereConfirmacion === true) {
+      const acepta = await pedirConfirmacionFueraDePlazo(datos.mensaje);
+
+      if (!acepta) return false;
+
+      respuesta = await enviarEdicion({
+        ...datosEvento,
+        confirmarFueraDePlazo: true
+      });
+      datos = await respuesta.json().catch(() => ({}));
+    }
+
     if (!respuesta.ok) {
-      throw new Error(datos.mensaje || 'No se pudo editar el evento');
+      throw new Error(datos.mensaje || datos.error || 'No se pudo editar el evento');
     }
 
     const editado = datos.evento || datos.datos || datos;
@@ -401,6 +437,70 @@ export default function GestionarEventos() {
         onClose={() => setImportarAbierto(false)}
         onImportar={importarEventos}
       />
+
+            <dialog
+        ref={dialogoFueraDePlazo}
+        aria-labelledby="titulo-fuera-de-plazo"
+        aria-describedby="mensaje-fuera-de-plazo"
+        style={{
+          width: 'min(420px, 90vw)',
+          boxSizing: 'border-box',
+          padding: '24px',
+          border: 'none',
+          borderRadius: '18px',
+          color: '#333',
+          backgroundColor: 'white',
+          fontFamily: 'inherit',
+          boxShadow: '0 10px 36px rgba(0, 0, 0, 0.25)'
+        }}
+      >
+        <h2
+          id="titulo-fuera-de-plazo"
+          style={{
+            margin: 0,
+            paddingBottom: '10px',
+            borderBottom: '2px solid #8a5b96',
+            color: '#523354',
+            fontSize: '22px'
+          }}
+        >
+          Cambio fuera de plazo
+        </h2>
+
+        <p
+          id="mensaje-fuera-de-plazo"
+          style={{ margin: '18px 0 22px', lineHeight: 1.5, whiteSpace: 'pre-line' }}
+        >
+          {mensajeFueraDePlazo}
+        </p>
+
+        <form
+          method="dialog"
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}
+        >
+          <button
+            type="submit"
+            value="cancelar"
+            autoFocus
+            style={{
+              backgroundColor: 'white', color: '#523354', border: '1px solid #8a5b96',
+              borderRadius: '20px', padding: '10px 18px', fontWeight: 'bold', cursor: 'pointer'
+            }}
+          >
+            Seguir editando
+          </button>
+          <button
+            type="submit"
+            value="confirmar"
+            style={{
+              backgroundColor: '#8a5b96', color: 'white', border: 'none',
+              borderRadius: '20px', padding: '10px 18px', fontWeight: 'bold', cursor: 'pointer'
+            }}
+          >
+            Confirmar cambio
+          </button>
+        </form>
+      </dialog>
 
       <ModalAgregarEvento
         isOpen={modalAbierto}

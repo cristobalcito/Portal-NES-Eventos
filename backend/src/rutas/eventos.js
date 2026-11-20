@@ -1,4 +1,5 @@
 const express = require('express');
+const { autenticarToken } = require('../middlewares/auth');
 const router = express.Router();
 const {
   obtenerEventos,
@@ -12,7 +13,7 @@ const {
 router.get('/', obtenerEventos);
 router.post('/', crearEvento);
 router.post('/importar', importarEventos);
-router.put('/:id', actualizarEvento);
+router.put('/:id', autenticarToken, actualizarEvento);
 router.patch('/:id/asistencia', actualizarAsistencia);
 router.delete('/:id', eliminarEvento);
 
