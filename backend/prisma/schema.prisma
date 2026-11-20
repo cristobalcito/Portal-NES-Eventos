@@ -57,6 +57,13 @@ model PersonalEventual {
   datosDePago         String?
   tallaDeRopa         String?
   notaFinal           Float?
+  curriculum          CurriculumPersonal?
+}
+
+model CurriculumPersonal {
+  rut       String           @id
+  contenido Bytes
+  persona   PersonalEventual @relation(fields: [rut], references: [rut], onDelete: Cascade)
 }
 
 // Recursos de la compañía

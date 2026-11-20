@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { mostrarPago } from '../components/datosTransferencia';
 import ModalPersonalEventual from '../components/ModalPersonalEventual';
-import ModalWebpayComponente from '../components/ModalWebpayComponente.jsx';
+import ModalWebpayComponente from '../components/modalWebpayComponente.jsx';
+import { obtenerCurriculumServicio } from '../servicios/personalExternoServicio.js';
 
 export default function PersonalPagina() {
   const [personal, setPersonal] = useState([]);
@@ -149,23 +151,29 @@ export default function PersonalPagina() {
 
   const cargarPersonal = () => {
     setCargando(true);
-    fetch(`${API_URL}/api/personal`, {
+    setError('');
+    const opciones = {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
       },
-    })
+    };
+    fetch(`${API_URL}/api/personal-externo`, opciones)
+      .then((respuesta) => {
+        if (respuesta.status === 401 || respuesta.status === 403) {
+          return fetch(`${API_URL}/api/personal`, opciones);
+        }
+        return respuesta;
+      })
       .then(async (respuesta) => {
         const datos = await respuesta.json();
         if (!respuesta.ok) {
-          throw new Error(datos.error || 'No se pudo cargar el personal.');
+          throw new Error(datos.mensaje || datos.error || 'No se pudo cargar el personal.');
         }
         return Array.isArray(datos) ? datos : (datos.datos || []);
       })
       .then((datos) => {
         setPersonal(datos);
-        if (datos.length > 0 && !personalSeleccionado) {
-          setPersonalSeleccionado(datos[0]);
-        }
+        setPersonalSeleccionado((actual) => datos.find((p) => p.rut === actual?.rut) ?? datos[0] ?? null);
       })
       .catch((errorCarga) => {
         console.error('Error al cargar personal:', errorCarga);
@@ -418,7 +426,7 @@ export default function PersonalPagina() {
     }
   };
 
-  const handleGuardarNuevoPersonal = async (formulario) => {
+  const handleGuardarNuevoPersonal = async (formulario, curriculum) => {
     if (!personalSeleccionado) {
       alert('Primero debes seleccionar un trabajador.');
       return;
@@ -427,17 +435,25 @@ export default function PersonalPagina() {
     try {
       const rutTrabajador = obtenerRut(personalSeleccionado);
       const usuarioSesion = JSON.parse(localStorage.getItem('usuario') || '{}');
+      let cuerpo = JSON.stringify(formulario);
+      if (curriculum) {
+        cuerpo = new FormData();
+        for (const [campo, valor] of Object.entries(formulario)) {
+          cuerpo.append(campo, valor);
+        }
+        cuerpo.append('curriculum', curriculum);
+      }
 
       const respuesta = await fetch(
         `${API_URL}/api/personal-externo/${encodeURIComponent(rutTrabajador)}`,
         {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
+            ...(curriculum ? {} : { 'Content-Type': 'application/json' }),
             'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
             'x-usuario-rut': usuarioSesion.rut || ''
           },
-          body: JSON.stringify(formulario)
+          body: cuerpo
         }
       );
 
@@ -446,11 +462,43 @@ export default function PersonalPagina() {
         throw new Error(resultado.mensaje || resultado.error || 'Error al actualizar la ficha.');
       }
 
-      alert('Ficha actualizada con exito.');
-      cargarPersonal();
+      const fichaActualizada = resultado.datos;
+      if (fichaActualizada?.rut === rutTrabajador) {
+        setPersonal((actual) => actual.map((p) => p.rut === rutTrabajador ? { ...p, ...fichaActualizada } : p));
+        setPersonalSeleccionado((actual) => actual?.rut === rutTrabajador ? { ...actual, ...fichaActualizada } : actual);
+      } else {
+        cargarPersonal();
+      }
       setMostrarModal(false);
+      alert('Ficha actualizada con éxito.');
     } catch (error) {
       console.error('Error al actualizar personal eventual:', error);
+      alert(error.message);
+    }
+  };
+
+  const handleVerCurriculum = async (persona) => {
+    const pestana = window.open('about:blank', '_blank');
+    if (!pestana) {
+      alert('Permite las ventanas emergentes para ver el PDF.');
+      return;
+    }
+    pestana.opener = null;
+
+    try {
+      const pdf = await obtenerCurriculumServicio(obtenerRut(persona), true);
+      if (pestana.closed) return;
+
+      const url = URL.createObjectURL(pdf);
+      const revisarCierre = window.setInterval(() => {
+        if (pestana.closed) {
+          URL.revokeObjectURL(url);
+          window.clearInterval(revisarCierre);
+        }
+      }, 1000);
+      pestana.location.replace(url);
+    } catch (error) {
+      pestana.close();
       alert(error.message);
     }
   };
@@ -663,9 +711,19 @@ export default function PersonalPagina() {
           {personalSeleccionado ? (
             <div style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '28px', margin: '0 0 15px 0' }}>
-                  {obtenerNombre(personalSeleccionado)}
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '15px' }}>
+                  <h2 style={{ fontSize: '28px', margin: 0 }}>{obtenerNombre(personalSeleccionado)}</h2>
+                  {personalSeleccionado.curriculum && (
+                    <button
+                      type="button"
+                      onClick={() => handleVerCurriculum(personalSeleccionado)}
+                      title="Abrir currículum en otra pestaña"
+                      style={{ backgroundColor: '#734b75', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '15px', cursor: 'pointer', fontWeight: 'bold' }}
+                    >
+                      Ver PDF
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   {puedePagarSueldos && (
                     <button
@@ -719,13 +777,13 @@ export default function PersonalPagina() {
                 <div>
                   <strong>Estado / Disponibilidad:</strong>
                   <div>
-                    {personalSeleccionado.estado || personalSeleccionado.disponibilidad || 'No especificada'}
+                    {personalSeleccionado.disponibilidad || personalSeleccionado.estado || 'No especificada'}
                   </div>
                 </div>
 
                 <div>
-                  <strong>Datos bancarios / de pago:</strong>
-                  <div>{personalSeleccionado.datosDePago || 'No registrados'}</div>
+                  <strong>Datos de transferencia:</strong>
+                  <div style={{ whiteSpace: 'pre-line' }}>{mostrarPago(personalSeleccionado.datosDePago)}</div>
                 </div>
 
                 <div>
@@ -736,8 +794,8 @@ export default function PersonalPagina() {
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
-                  <strong>Experiencia:</strong>
-                  <div>{personalSeleccionado.experiencia || 'Sin registrar'}</div>
+                  <strong>Experiencia (con la productora):</strong>
+                  <div>{personalSeleccionado.experiencia === 'Sin registrar' ? 'Sin registro' : personalSeleccionado.experiencia || 'Sin registro'}</div>
                 </div>
               </div>
             </div>

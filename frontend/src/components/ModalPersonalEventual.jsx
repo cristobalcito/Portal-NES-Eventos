@@ -1,198 +1,255 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 
-const formularioInicial = {
-  rut: '',
-  nombre: '',
-  rol: '',
-  disponibilidad: '',
-  fono: '',
-  experiencia: '',
-  datosDePago: '',
-  tallaDeRopa: ''
-};
+import { camposPago, leerPago } from './datosTransferencia';
+import { obtenerCurriculumServicio } from '../servicios/personalExternoServicio.js';
 
-export default function ModalPersonalEventual({
-  isOpen,
-  onClose,
-  onGuardar,
-  personalSeleccionado
-}) {
-  const [formulario, setFormulario] = useState(formularioInicial);
+const bancos = ['BancoEstado', 'Banco de Chile', 'Banco Santander', 'BCI', 'Banco Falabella', 'Scotiabank', 'Banco Itaú', 'Banco BICE', 'Banco Security', 'Banco Internacional'];
+const tiposCuenta = ['Cuenta corriente', 'Cuenta vista', 'CuentaRUT', 'Cuenta de ahorro'];
+const cargos = ['Garzón', 'DJ', 'Coordinador', 'Chofer', 'Técnico', 'Operativo'];
+const estados = ['Disponible', 'No disponible', 'Por confirmar'];
+const experiencias = ['Sí', 'No', 'Sin registro'];
+const tallas = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const limiteCurriculum = 5 * 1024 * 1024;
 
-  const [vistaPrevia, setVistaPrevia] = useState(false);
+export default function ModalPersonalEventual({ isOpen, personalSeleccionado, onClose, onGuardar }) {
+  if (!isOpen || !personalSeleccionado) return null;
+  return (
+    <Ficha key={personalSeleccionado.rut} persona={personalSeleccionado}
+      onClose={onClose} onGuardar={onGuardar} />
+  );
+}
 
-useEffect(() => {
-  if (isOpen && personalSeleccionado) {
-    setFormulario({
-      rut: personalSeleccionado.rut || '',
-      nombre: personalSeleccionado.usuario?.nombre || '',
-      rol: personalSeleccionado.rol || '',
-      disponibilidad: personalSeleccionado.disponibilidad || '',
-      fono: personalSeleccionado.fono || '',
-      experiencia: personalSeleccionado.experiencia || '',
-      datosDePago: personalSeleccionado.datosDePago || '',
-      tallaDeRopa: personalSeleccionado.tallaDeRopa || ''
-    });
+function Ficha({ persona, onClose, onGuardar }) {
+  const disponibilidadInicial = persona.disponibilidad ?? persona.estado ?? persona.Estado ?? '';
+  const experienciaInicial = !persona.experiencia || persona.experiencia === 'Sin registrar'
+    ? 'Sin registro'
+    : persona.experiencia;
+  const experienciaAnterior = experiencias.includes(experienciaInicial) ? '' : experienciaInicial;
+  const [formulario, setFormulario] = useState(() => ({
+    rol: persona.rol ?? '',
+    disponibilidad: disponibilidadInicial,
+    fono: persona.fono ?? persona.telefono ?? '',
+    experiencia: experienciaAnterior ? '' : experienciaInicial,
+    tallaDeRopa: persona.tallaDeRopa ?? ''
+  }));
+  const [pago, setPago] = useState(() => leerPago(persona.datosDePago, persona));
+  const [pagoEditado, setPagoEditado] = useState(false);
+  const [curriculum, setCurriculum] = useState(null);
+  const [eliminarCurriculum, setEliminarCurriculum] = useState(false);
+  const [errorAdjunto, setErrorAdjunto] = useState('');
+  const [errorDescarga, setErrorDescarga] = useState('');
+  const [descargando, setDescargando] = useState(false);
+  const [otroBanco, setOtroBanco] = useState(Boolean(pago.banco && !bancos.includes(pago.banco)));
+  const [otroCargo, setOtroCargo] = useState(Boolean(formulario.rol && !cargos.includes(formulario.rol)));
+  const [guardando, setGuardando] = useState(false);
+  const entradaCurriculum = useRef(null);
+  const asignado = /^Asignado a Evento #/i.test(disponibilidadInicial);
 
-    setVistaPrevia(false);
+  function cambiarPago(campo, valor) {
+    setPagoEditado(true);
+    setPago(actual => ({ ...actual, [campo]: valor }));
   }
-}, [isOpen, personalSeleccionado]);
 
-  if (!isOpen) return null;
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormulario((anterior) => ({
-      ...anterior,
-      
-      [name]: value
-    }));
-    setVistaPrevia(false);
-  };
-
-  const handleSubmit = (e) => {
-  e.preventDefault();
-
-  
-  setVistaPrevia(true);
-};
-
-const handleConfirmarGuardado = async () => {
-  if (typeof onGuardar === 'function') {
-    await onGuardar(formulario);
+  async function descargarCurriculum() {
+    setErrorDescarga('');
+    setDescargando(true);
+    try {
+      const url = URL.createObjectURL(await obtenerCurriculumServicio(persona.rut));
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = 'curriculum.pdf';
+      enlace.click();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (error) {
+      setErrorDescarga(error.message);
+    } finally {
+      setDescargando(false);
+    }
   }
-};
+
+  function adjuntarCurriculum(evento) {
+    const archivo = evento.target.files[0];
+    let error = '';
+    if (archivo && archivo.size > limiteCurriculum) {
+      error = 'El PDF debe pesar hasta 5 MB.';
+    } else if (archivo?.type && !['application/pdf', 'application/octet-stream'].includes(archivo.type)) {
+      error = 'El currículum debe ser un PDF.';
+    }
+    evento.target.setCustomValidity(error);
+    setErrorAdjunto(error);
+    setCurriculum(error ? null : archivo ?? null);
+  }
+
+  function quitarAdjunto() {
+    entradaCurriculum.current.value = '';
+    entradaCurriculum.current.setCustomValidity('');
+    setCurriculum(null);
+    setErrorAdjunto('');
+  }
+
+  function marcarEliminacionCurriculum() {
+    quitarAdjunto();
+    setErrorDescarga('');
+    setEliminarCurriculum(true);
+  }
+
+  function cambiar(evento) {
+    const { name, value } = evento.target;
+    setFormulario(actual => ({ ...actual, [name]: value }));
+  }
+
+  function cambiarCargo(evento) {
+    const valor = evento.target.value;
+    const otro = valor === '__otro__';
+    setOtroCargo(otro);
+    setFormulario(actual => ({ ...actual, rol: otro ? '' : valor }));
+  }
+
+  async function guardar(evento) {
+    evento.preventDefault();
+    if (guardando || errorAdjunto || !onGuardar) return;
+    setGuardando(true);
+    try {
+      const datos = { ...formulario, rol: formulario.rol.trim() };
+      if (asignado || formulario.disponibilidad === disponibilidadInicial) delete datos.disponibilidad;
+      if (!formulario.experiencia) delete datos.experiencia;
+      if (pagoEditado) datos.datosDePago = JSON.stringify({ formato: 'transferencia-v1', ...pago });
+      if (eliminarCurriculum) datos.eliminarCurriculum = true;
+      await onGuardar(datos, curriculum);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
   return (
     <div style={estilos.fondo}>
-      <div style={estilos.modal}>
+      <div style={estilos.modal} role="dialog" aria-modal="true" aria-labelledby="titulo-ficha">
         <div style={estilos.encabezado}>
-          <h2 style={{ margin: 0, color: '#523354' }}>
-            Registrar Personal Eventual
-          </h2>
-
-          <button type="button" onClick={onClose}>
-            ✕
-          </button>
+          <h2 id="titulo-ficha" style={{ margin: 0, color: '#523354' }}>Ficha laboral</h2>
+          <button type="button" onClick={onClose} disabled={guardando} aria-label="Cerrar">×</button>
         </div>
-
-        <form onSubmit={handleSubmit} style={estilos.formulario}>
+        <form onSubmit={guardar} style={estilos.formulario} aria-busy={guardando}>
           <div style={estilos.columnas}>
-            <Campo
-              etiqueta="RUT"
-              nombre="rut"
-              valor={formulario.rut}
-              onChange={handleChange}
-              soloLectura
-            />
-
-            <Campo
-              etiqueta="Nombre completo"
-              nombre="nombre"
-              valor={formulario.nombre}
-              onChange={handleChange}
-              soloLectura
-            />
-
-            <Campo
-              etiqueta="Rol / Cargo"
-              nombre="rol"
-              valor={formulario.rol}
-              onChange={handleChange}
-            />
-
-            <Campo
-              etiqueta="Teléfono"
-              nombre="fono"
-              valor={formulario.fono}
-              onChange={handleChange}
-            />
-
-            <Campo
-              etiqueta="Disponibilidad"
-              nombre="disponibilidad"
-              valor={formulario.disponibilidad}
-              onChange={handleChange}
-            />
-
-            <Campo
-              etiqueta="Talla de uniforme"
-              nombre="tallaDeRopa"
-              valor={formulario.tallaDeRopa}
-              onChange={handleChange}
-            />
-          </div>
-
-          <Campo
-            etiqueta="Experiencia"
-            nombre="experiencia"
-            valor={formulario.experiencia}
-            onChange={handleChange}
-          />
-
-          <Campo
-            etiqueta="Datos de pago"
-            nombre="datosDePago"
-            valor={formulario.datosDePago}
-            onChange={handleChange}
-          />
-
-          {vistaPrevia && (
-  <div
-    role="status"
-    style={{
-      backgroundColor: '#f5eef7',
-      padding: '16px',
-      borderRadius: '10px',
-      border: '1px solid #8a5b96'
-    }}
-  >
-    <h3 style={{ marginTop: 0, color: '#523354' }}>
-      Vista previa del personal
-    </h3>
-
-    <p><strong>Nombre:</strong> {formulario.nombre}</p>
-    <p><strong>RUT:</strong> {formulario.rut}</p>
-    <p><strong>Cargo:</strong> {formulario.rol}</p>
-    <p><strong>Teléfono:</strong> {formulario.fono}</p>
-    <p><strong>Disponibilidad:</strong> {formulario.disponibilidad}</p>
-    <p><strong>Experiencia:</strong> {formulario.experiencia}</p>
-    <p><strong>Talla:</strong> {formulario.tallaDeRopa}</p>
-
-    <p style={{ color: '#80508a', fontSize: '13px' }}>
-      Esta información todavía no se ha guardado.
-    </p>
-  </div>
-)}
-
-          <div style={estilos.botones}>
-            <button type="button" onClick={onClose}>
-              Cancelar
-            </button>
-
-            <button type="submit" style={estilos.guardar}>
-              Revisar datos
-            </button>
-
-            {vistaPrevia && (
-              <button
-                type="button"
-                onClick={handleConfirmarGuardado}
-                disabled={!onGuardar}
-                style={estilos.guardar}
-              >
-                Confirmar y guardar
-              </button>
+            <Campo etiqueta="RUT" nombre="rut" valor={persona.rut ?? ''} soloLectura />
+            <Campo etiqueta="Nombre completo" nombre="nombre" valor={persona.usuario?.nombre ?? persona.nombre ?? ''} soloLectura />
+            <label style={estiloEtiqueta}>
+              <strong>Rol / Cargo</strong>
+              <select name="cargo" value={otroCargo ? '__otro__' : formulario.rol} onChange={cambiarCargo} style={estilos.input}>
+                <option value="">Seleccionar cargo</option>
+                {cargos.map(cargo => <option key={cargo}>{cargo}</option>)}
+                <option value="__otro__">Otro</option>
+              </select>
+            </label>
+            {otroCargo && (
+              <label style={estiloEtiqueta}>
+                <strong>Especifica el cargo</strong>
+                <input name="rol" value={formulario.rol} onChange={cambiar} required pattern=".*\S.*" style={estilos.input} />
+              </label>
             )}
+            <Campo etiqueta="Teléfono" nombre="fono" valor={formulario.fono} onChange={cambiar} />
+            <Selector etiqueta="Disponibilidad" nombre="disponibilidad" valor={formulario.disponibilidad}
+              opciones={estados} onChange={cambiar} bloqueado={asignado} />
+            <Selector etiqueta="Talla de uniforme" nombre="tallaDeRopa" valor={formulario.tallaDeRopa}
+              opciones={tallas} onChange={cambiar} />
           </div>
-
-          <p style={{ fontSize: '12px', color: '#666' }}>
-            El registro estará disponible cuando terminemos
-            la integración segura con el backend.
-          </p>
+          <Selector etiqueta="Experiencia (con la productora)" nombre="experiencia"
+            valor={formulario.experiencia} opciones={experiencias} onChange={cambiar} opcionVacia={null} />
+          {experienciaAnterior && !formulario.experiencia && (
+            <small>Experiencia registrada anteriormente: {experienciaAnterior}</small>
+          )}
+          <fieldset>
+            <legend>Datos de transferencia</legend>
+            <div style={estilos.columnas}>
+              {Object.entries(camposPago).map(([campo, etiqueta]) => {
+                if (campo === 'banco') return (
+                  <label key={campo} style={estiloEtiqueta}>
+                    <strong>{etiqueta}</strong>
+                    <select value={otroBanco ? '__otro__' : pago.banco} style={estilos.input}
+                      onChange={e => {
+                        const otro = e.target.value === '__otro__';
+                        setOtroBanco(otro);
+                        cambiarPago(campo, otro ? '' : e.target.value);
+                      }}>
+                      <option value="">Seleccionar banco</option>
+                      {bancos.map(banco => <option key={banco}>{banco}</option>)}
+                      <option value="__otro__">Otro</option>
+                    </select>
+                    {otroBanco && <input aria-label="Nombre del banco" value={pago.banco} required
+                      placeholder="Nombre del banco" style={estilos.input} onChange={e => cambiarPago(campo, e.target.value)} />}
+                  </label>
+                );
+                if (campo === 'tipo') return (
+                  <Selector key={campo} etiqueta={etiqueta} nombre={campo} valor={pago.tipo}
+                    opciones={tiposCuenta} onChange={e => cambiarPago(campo, e.target.value)} />
+                );
+                return (
+                  <label key={campo} style={estiloEtiqueta}>
+                    <strong>{etiqueta}</strong>
+                    <input type={campo === 'correo' ? 'email' : 'text'} value={pago[campo]}
+                      inputMode={campo === 'numero' ? 'numeric' : undefined} style={estilos.input}
+                      onChange={e => cambiarPago(campo, e.target.value)} />
+                  </label>
+                );
+              })}
+            </div>
+            {pago.anterior && <p>Datos guardados anteriormente: {pago.anterior}</p>}
+          </fieldset>
+          <fieldset>
+            <legend>Currículum (PDF)</legend>
+            {eliminarCurriculum ? (
+              <>
+                <p role="status">El PDF se eliminará al guardar la ficha.</p>
+                <button type="button" onClick={() => setEliminarCurriculum(false)} disabled={guardando}>Deshacer</button>
+              </>
+            ) : (
+              <>
+                {persona.curriculum && (
+                  <div style={estilos.accionesCurriculum}>
+                    <button type="button" onClick={marcarEliminacionCurriculum} disabled={descargando || guardando}>Eliminar PDF</button>
+                    <button type="button" onClick={descargarCurriculum} disabled={descargando || guardando}>
+                      {descargando ? 'Descargando…' : 'Descargar PDF actual'}
+                    </button>
+                  </div>
+                )}
+                <label style={estiloEtiqueta}>
+                  {persona.curriculum ? 'Reemplazar PDF (opcional, hasta 5 MB)' : 'Adjuntar PDF (opcional, hasta 5 MB)'}
+                  <input type="file" name="curriculum" accept="application/pdf,.pdf" ref={entradaCurriculum}
+                    onChange={adjuntarCurriculum} disabled={guardando} />
+                </label>
+                {(curriculum || errorAdjunto) && (
+                  <button type="button" onClick={quitarAdjunto} disabled={guardando}>Quitar selección</button>
+                )}
+                {errorAdjunto && <p role="alert">{errorAdjunto}</p>}
+                {errorDescarga && <p role="alert">{errorDescarga}</p>}
+              </>
+            )}
+          </fieldset>
+          <div style={estilos.botones}>
+            <button type="button" onClick={onClose} disabled={guardando}>Cancelar</button>
+            <button type="submit" disabled={guardando || !onGuardar} style={estilos.guardar}>
+              {guardando ? 'Guardando…' : 'Guardar ficha'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
+  );
+}
+
+const estiloEtiqueta = { display: 'flex', flexDirection: 'column', gap: '5px', fontSize: '13px' };
+
+function Selector({ etiqueta, nombre, valor, opciones, onChange, bloqueado = false, opcionVacia = 'Sin especificar' }) {
+  return (
+    <label style={estiloEtiqueta}>
+      <strong>{etiqueta}</strong>
+      <select name={nombre} value={valor} onChange={onChange} disabled={bloqueado} style={estilos.input}>
+        {opcionVacia
+          ? <option value="">{opcionVacia}</option>
+          : !valor && <option value="" disabled hidden>Seleccionar</option>}
+        {valor && !opciones.includes(valor) && <option value={valor}>{valor}</option>}
+        {opciones.map(opcion => <option key={opcion}>{opcion}</option>)}
+      </select>
+    </label>
   );
 }
 
@@ -265,6 +322,12 @@ const estilos = {
     justifyContent: 'flex-end',
     gap: '10px',
     marginTop: '10px'
+  },
+  accionesCurriculum: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
+    marginBottom: '8px'
   },
   guardar: {
     padding: '10px 18px',
