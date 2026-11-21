@@ -31,7 +31,7 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
       <header style={styles.navbar}>
         <div style={styles.navContenedor}>
           <div style={styles.marca}>
-            <img src="NES LOGO.png" alt="NES Eventos" style={styles.logoNav} />
+            <img src="NES.png" alt="NES Eventos" style={styles.logoNav} />
             <div>
               <span style={styles.nombreMarca}>NES Eventos</span>
               <span style={styles.subMarca}>Producción y Logística</span>
@@ -82,7 +82,7 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
           <div style={styles.heroTarjeta}>
             <div style={styles.tarjetaEncabezado}>
               <span style={styles.puntoEstado} />
-              <span style={styles.tarjetaTitulo}>NES Eventos</span>
+              <span style={styles.tarjetaTitulo}>Portal en línea de NES Eventos</span>
             </div>
             <p style={styles.tarjetaCuerpo}>
               Accede con tu cuenta de cliente para revisar disponibilidad de fechas en el horario compartido y consultar precios.
@@ -102,8 +102,8 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
       <section id="servicios" style={styles.seccionServicios}>
         <div style={styles.contenedorSeccion}>
           <div style={styles.encabezadoSeccion}>
-            <span style={styles.subtituloSeccion}>Nuestras Capacidades</span>
-            <h2 style={styles.tituloSeccion}>Soluciones integrales para cada jornada</h2>
+            <img src="NES-LOGO-NEW-SMALLER.png" alt="NES Eventos" style={{ height: '420px', marginBottom: '8px' }} />
+            <h2 style={styles.tituloSeccion}>Soluciones personalizadas</h2>
           </div>
 
           <div style={styles.gridServicios}>
