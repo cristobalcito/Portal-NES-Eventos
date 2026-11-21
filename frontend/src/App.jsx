@@ -8,7 +8,6 @@ import PersonalPagina from './pages/PersonalPagina.jsx';
 import GestionUsuarios from './pages/GestionarUsuarioPage.jsx';
 import HorarioCompartidoPagina from './pages/HorarioCompartidoPagina.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
-import EstadoEquiposPagina from './pages/EstadoEquiposPagina.jsx';
 import MantencionesPagina from './pages/MantencionesPagina.jsx';
 import EquiposArrendadosPagina from './pages/EquiposArrendadosPagina.jsx';
 import CampanaAlertas from './components/CampanaAlertas.jsx';
@@ -215,8 +214,6 @@ function App() {
                         </div>
                     </div>
                 );
-            case '/estado-equipos':
-                return <EstadoEquiposPagina {...propsDeNavegacion} />;
             case '/mantenciones':
                 return <MantencionesPagina {...propsDeNavegacion} />;
             case '/arrendados':
