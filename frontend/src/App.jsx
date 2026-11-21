@@ -5,12 +5,51 @@ import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
 import PersonalPagina from './pages/PersonalPagina.jsx';
 import GestionUsuarios from './pages/GestionarUsuarioPage.jsx';
-import Horario from './components/Horario.jsx';
+import HorarioCompartidoPagina from './pages/HorarioCompartidoPagina.jsx';
 import Sidebar from './components/SidebarComponente.jsx';
 import EstadoEquiposPagina from './pages/EstadoEquiposPagina.jsx';
 import MantencionesPagina from './pages/MantencionesPagina.jsx';
 import EquiposArrendadosPagina from './pages/EquiposArrendadosPagina.jsx';
 import CampanaAlertas from './components/CampanaAlertas.jsx';
+
+const normalizarRolUsuario = (datosUsuario, rolRespaldo = '') => {
+    const extraerDeObjeto = (obj) => {
+        if (!obj || typeof obj !== 'object') return '';
+        const rolTexto = (
+            obj.rol ||
+            obj.Rol ||
+            obj.ROL ||
+            obj.tipo ||
+            ''
+        ).toString().toUpperCase().trim();
+
+        if (rolTexto) return rolTexto;
+        if (obj.gerenteGeneral) return 'GERENTE_GENERAL';
+        if (obj.personalOperaciones) return 'PERSONAL_OPERACIONES';
+        if (obj.personalEventual) return 'PERSONAL_EVENTUAL';
+        if (obj.cliente) return 'CLIENTE';
+        return '';
+    };
+
+    const desdeUsuario = extraerDeObjeto(datosUsuario);
+    if (desdeUsuario) return desdeUsuario;
+
+    const rolGuardado = (localStorage.getItem('rol') || '').toUpperCase().trim();
+    if (rolGuardado) return rolGuardado;
+
+    try {
+        const token = localStorage.getItem('token');
+        if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const desdeToken = extraerDeObjeto(payload);
+            if (desdeToken) return desdeToken;
+        }
+    } catch {
+        return rolRespaldo || 'GERENTE_GENERAL';
+    }
+
+    return rolRespaldo || 'GERENTE_GENERAL';
+};
 
 function App() {
     const [usuario, setUsuario] = useState(null);
@@ -33,22 +72,17 @@ function App() {
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('usuario');
+        localStorage.removeItem('rol');
         setUsuario(null);
         setSeccionActual('/home');
     };
 
-    // Función para actualizar el usuario resguardando el ROL y RUT
     const handleUpdateUsuario = (nuevoUsuario) => {
         setUsuario((prevUsuario) => {
             if (!prevUsuario) return nuevoUsuario;
 
-            const rolMantenido =
-                nuevoUsuario.rol ||
-                nuevoUsuario.Rol ||
-                nuevoUsuario.ROL ||
-                prevUsuario.rol ||
-                prevUsuario.Rol ||
-                'GERENTE_GENERAL';
+            const rolPrevio = normalizarRolUsuario(prevUsuario);
+            const rolMantenido = normalizarRolUsuario(nuevoUsuario, rolPrevio);
 
             const rutMantenido =
                 nuevoUsuario.rut ||
@@ -88,12 +122,7 @@ function App() {
         onUpdateUsuario: handleUpdateUsuario,
     };
 
-    // Determinar ROL y RUT con resguardos de nombres de propiedad
-    const rolDetectado = 
-        usuario.rol || 
-        usuario.Rol || 
-        usuario.ROL || 
-        'GERENTE_GENERAL';
+    const rolDetectado = normalizarRolUsuario(usuario);
 
     const rutDetectado = 
         usuario.rut || 
@@ -110,11 +139,7 @@ function App() {
                 return <GestionarEventos {...propsDeNavegacion} />;
             case '/horario':
             case '/horario-compartido':
-                return (
-                    <div style={{ padding: '2rem' }}>
-                        <Horario {...propsDeNavegacion} />
-                    </div>
-                );
+                return <HorarioCompartidoPagina {...propsDeNavegacion} />;
             case '/personal':
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
@@ -132,7 +157,6 @@ function App() {
             case '/home':
                 return (
                     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
-                        {/* Tarjeta de bienvenida de usuario */}
                         <div style={{ backgroundColor: '#ffffff', padding: '1.5rem 2rem', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                                 <h1 style={{ color: '#523354', margin: '0 0 0.5rem 0', fontSize: '1.8rem' }}>Portal NES Eventos</h1>
@@ -153,9 +177,8 @@ function App() {
                             </button>
                         </div>
 
-                        {/* Componente Horario incrustado */}
                         <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                            <Horario />
+                            <HorarioCompartidoPagina {...propsDeNavegacion} />
                         </div>
                     </div>
                 );

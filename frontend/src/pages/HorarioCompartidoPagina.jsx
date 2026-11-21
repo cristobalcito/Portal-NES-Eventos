@@ -37,6 +37,12 @@ const extraerFechaClave = (valorFecha) => {
   return `${anoEv}-${mesEv}-${diaEv}`;
 };
 
+const formatearFechaLegible = (fechaClave) => {
+  if (!fechaClave || !/^\d{4}-\d{2}-\d{2}$/.test(fechaClave)) return fechaClave || '';
+  const [anio, mes, dia] = fechaClave.split('-');
+  return `${dia}/${mes}/${anio}`;
+};
+
 const extraerListaPersonal = (texto) => {
   if (!texto) return [];
   return String(texto)
@@ -132,6 +138,13 @@ export default function HorarioCompartidoPagina() {
     setAvisoCliente('');
   };
 
+  const irAHoy = () => {
+    const ahora = new Date();
+    setFechaActual(new Date(ahora.getFullYear(), ahora.getMonth(), 1));
+    setDiaSeleccionado(null);
+    setAvisoCliente('');
+  };
+
   const eventosVisibles = Array.isArray(eventos)
     ? eventos.filter((ev) => {
         if (esPersonalEventual) {
@@ -158,8 +171,12 @@ export default function HorarioCompartidoPagina() {
       })
     : [];
 
+  const hoy = new Date();
+  const claveHoy = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+
   const ano = fechaActual.getFullYear();
   const mes = fechaActual.getMonth();
+  const estaEnMesActual = ano === hoy.getFullYear() && mes === hoy.getMonth();
 
   const primerDiaMes = new Date(ano, mes, 1).getDay();
   const diaInicioSemana = primerDiaMes === 0 ? 6 : primerDiaMes - 1;
@@ -333,10 +350,11 @@ export default function HorarioCompartidoPagina() {
 
   const manejarClicDia = (fechaClave, tieneOcupacion, analisis) => {
     if (esCliente) {
+      const fechaTexto = formatearFechaLegible(fechaClave);
       setAvisoCliente(
         tieneOcupacion
-          ? `El día ${fechaClave} ya se encuentra reservado. Selecciona una fecha marcada como Disponible.`
-          : `El día ${fechaClave} está disponible para agendar tu evento.`
+          ? `El día ${fechaTexto} ya se encuentra reservado. Selecciona una fecha marcada como Disponible.`
+          : `El día ${fechaTexto} está disponible para agendar tu evento.`
       );
       return;
     }
@@ -345,6 +363,43 @@ export default function HorarioCompartidoPagina() {
       setDiaSeleccionado({ fecha: fechaClave, analisis });
     }
   };
+
+  const prefijoMesActual = `${ano}-${String(mes + 1).padStart(2, '0')}`;
+  const eventosDelMesOrdenados = eventosVisibles
+    .map((ev) => ({
+      ...ev,
+      fechaClave: extraerFechaClave(ev.fecha),
+      bloque: calcularBloqueOperativo(ev),
+      infoEstado: obtenerDatosEstado(ev),
+    }))
+    .filter((ev) => ev.fechaClave && ev.fechaClave.startsWith(prefijoMesActual))
+    .sort((a, b) => {
+      if (a.fechaClave !== b.fechaClave) {
+        return a.fechaClave.localeCompare(b.fechaClave);
+      }
+      return a.bloque.inicioBase.getTime() - b.bloque.inicioBase.getTime();
+    });
+
+  const fechasReservadasMes = [...new Set(eventosDelMesOrdenados.map((ev) => ev.fechaClave))];
+
+  const itemsLeyenda = esCliente
+    ? [
+        { etiqueta: 'Disponible', bg: '#f0fdf4', border: '#bbf7d0' },
+        { etiqueta: 'Reservado', bg: '#fde8e8', border: '#f87171' },
+        { etiqueta: 'Día actual', bg: '#523354', border: '#523354' },
+      ]
+    : esPersonalEventual
+    ? [
+        { etiqueta: 'Sin asignación', bg: '#f8fafc', border: '#e2e8f0' },
+        { etiqueta: 'Evento asignado', bg: '#fde8e8', border: '#f87171' },
+        { etiqueta: 'Día actual', bg: '#523354', border: '#523354' },
+      ]
+    : [
+        { etiqueta: 'Sin eventos', bg: '#f8fafc', border: '#e2e8f0' },
+        { etiqueta: 'Ocupado sin conflictos', bg: '#fde8e8', border: '#f87171' },
+        { etiqueta: 'Conflicto operativo o capacidad', bg: '#fee2e2', border: '#dc2626' },
+        { etiqueta: 'Día actual', bg: '#523354', border: '#523354' },
+      ];
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'system-ui, sans-serif' }}>
@@ -438,12 +493,48 @@ export default function HorarioCompartidoPagina() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', backgroundColor: '#fff', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', backgroundColor: '#fff', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', flexWrap: 'wrap', gap: '8px' }}>
         <button type="button" onClick={mesAnterior} style={btnNavStyle}>&lt; Mes Anterior</button>
-        <h2 style={{ margin: 0, color: '#523354', fontSize: '1.2rem' }}>
-          {nombresMeses[mes]} {ano}
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h2 style={{ margin: 0, color: '#523354', fontSize: '1.2rem' }}>
+            {nombresMeses[mes]} {ano}
+          </h2>
+          <button
+            type="button"
+            onClick={irAHoy}
+            disabled={estaEnMesActual}
+            style={{
+              backgroundColor: estaEnMesActual ? '#f1f5f9' : '#f3e8ff',
+              color: estaEnMesActual ? '#94a3b8' : '#523354',
+              border: estaEnMesActual ? '1px solid #e2e8f0' : '1px solid #d8b4fe',
+              padding: '5px 12px',
+              borderRadius: '8px',
+              cursor: estaEnMesActual ? 'default' : 'pointer',
+              fontWeight: 'bold',
+              fontSize: '0.8rem'
+            }}
+          >
+            Hoy
+          </button>
+        </div>
         <button type="button" onClick={mesSiguiente} style={btnNavStyle}>Mes Siguiente &gt;</button>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center', marginBottom: '0.75rem', padding: '8px 14px', backgroundColor: '#fff', borderRadius: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', fontSize: '0.8rem', color: '#475569' }}>
+        <span style={{ fontWeight: '600', color: '#334155' }}>Referencias:</span>
+        {itemsLeyenda.map((item) => (
+          <div key={item.etiqueta} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              display: 'inline-block',
+              width: '14px',
+              height: '14px',
+              borderRadius: '4px',
+              backgroundColor: item.bg,
+              border: `1.5px solid ${item.border}`
+            }} />
+            <span>{item.etiqueta}</span>
+          </div>
+        ))}
       </div>
 
       <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
@@ -463,6 +554,7 @@ export default function HorarioCompartidoPagina() {
             const mesStr = String(mes + 1).padStart(2, '0');
             const diaStr = String(numeroDia).padStart(2, '0');
             const fechaClave = `${ano}-${mesStr}-${diaStr}`;
+            const esHoy = fechaClave === claveHoy;
 
             const listaEventosDia = eventosPorFecha[fechaClave] || [];
             const tieneOcupacion = listaEventosDia.length > 0;
@@ -495,6 +587,8 @@ export default function HorarioCompartidoPagina() {
                     : esCliente
                     ? '1px solid #bbf7d0'
                     : '1px solid #e2e8f0',
+                  outline: esHoy ? '2px solid #523354' : 'none',
+                  outlineOffset: '1px',
                   cursor: tieneOcupacion || esCliente ? 'pointer' : 'default',
                   display: 'flex',
                   flexDirection: 'column',
@@ -505,8 +599,15 @@ export default function HorarioCompartidoPagina() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{
                     fontWeight: 'bold',
-                    fontSize: '0.9rem',
-                    color: tieneOcupacion ? '#991b1b' : esCliente ? '#166534' : '#334155'
+                    fontSize: '0.85rem',
+                    width: esHoy ? '24px' : 'auto',
+                    height: esHoy ? '24px' : 'auto',
+                    borderRadius: esHoy ? '50%' : '0',
+                    backgroundColor: esHoy ? '#523354' : 'transparent',
+                    color: esHoy ? '#ffffff' : tieneOcupacion ? '#991b1b' : esCliente ? '#166534' : '#334155',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
                     {numeroDia}
                   </span>
@@ -560,11 +661,132 @@ export default function HorarioCompartidoPagina() {
         </div>
       </div>
 
+      <div style={{ marginTop: '1.25rem', backgroundColor: '#fff', borderRadius: '16px', padding: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+          <h3 style={{ margin: 0, color: '#523354', fontSize: '1.05rem' }}>
+            {esCliente
+              ? `Fechas reservadas en ${nombresMeses[mes]} ${ano}`
+              : `Compromisos de ${nombresMeses[mes]} ${ano}`}
+          </h3>
+          <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600' }}>
+            {esCliente
+              ? `${fechasReservadasMes.length} ${fechasReservadasMes.length === 1 ? 'fecha ocupada' : 'fechas ocupadas'}`
+              : `${eventosDelMesOrdenados.length} ${eventosDelMesOrdenados.length === 1 ? 'evento' : 'eventos'}`}
+          </span>
+        </div>
+
+        {esCliente ? (
+          fechasReservadasMes.length === 0 ? (
+            <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b' }}>
+              Todas las fechas de este mes se encuentran disponibles.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {fechasReservadasMes.map((fechaRes) => (
+                <span
+                  key={fechaRes}
+                  style={{
+                    backgroundColor: '#fef2f2',
+                    color: '#991b1b',
+                    border: '1px solid #fecaca',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: '600'
+                  }}
+                >
+                  {formatearFechaLegible(fechaRes)} - Reservado
+                </span>
+              ))}
+            </div>
+          )
+        ) : eventosDelMesOrdenados.length === 0 ? (
+          <p style={{ margin: 0, fontSize: '0.88rem', color: '#64748b' }}>
+            {esPersonalEventual
+              ? 'No tienes eventos asignados durante este mes.'
+              : 'No hay eventos registrados para el filtro seleccionado en este mes.'}
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {eventosDelMesOrdenados.map((ev, idx) => {
+              const listaDia = eventosPorFecha[ev.fechaClave] || [];
+              const analisisDia = analizarDiaOperativo(listaDia);
+              const tieneConflictoDia = esEquipoInterno && analisisDia.hayConflicto;
+
+              return (
+                <div
+                  key={ev.idPE || ev.id || `${ev.fechaClave}-${idx}`}
+                  onClick={() => setDiaSeleccionado({ fecha: ev.fechaClave, analisis: analisisDia })}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: '#f8fafc',
+                    border: tieneConflictoDia ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <span style={{
+                      backgroundColor: ev.fechaClave === claveHoy ? '#523354' : '#f3e8ff',
+                      color: ev.fechaClave === claveHoy ? '#fff' : '#523354',
+                      padding: '4px 10px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      fontSize: '0.82rem'
+                    }}>
+                      {formatearFechaLegible(ev.fechaClave)}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: 'bold', color: '#1e293b', fontSize: '0.92rem' }}>
+                        {ev.descripcion || `Evento #${ev.idPE || ev.id}`}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+                        Horario: {ev.bloque.textoEvento} | Lugar: {ev.lugar || 'No especificado'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {tieneConflictoDia && (
+                      <span style={{
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        fontWeight: 'bold',
+                        backgroundColor: '#fee2e2',
+                        color: '#b91c1c'
+                      }}>
+                        Conflicto en jornada
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '3px 10px',
+                      borderRadius: '10px',
+                      fontWeight: 'bold',
+                      backgroundColor: ev.infoEstado.bg,
+                      color: ev.infoEstado.color
+                    }}>
+                      {ev.infoEstado.etiqueta}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {diaSeleccionado && !esCliente && (
         <div style={styles.modalOverlay} onClick={() => setDiaSeleccionado(null)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-              <h3 style={{ margin: 0, color: '#0f172a' }}>Eventos del {diaSeleccionado.fecha}</h3>
+              <h3 style={{ margin: 0, color: '#0f172a' }}>Eventos del {formatearFechaLegible(diaSeleccionado.fecha)}</h3>
               {esEquipoInterno && (
                 <span style={{ fontSize: '0.8rem', backgroundColor: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '6px', fontWeight: '600' }}>
                   {diaSeleccionado.analisis.resumenCapacidad}
