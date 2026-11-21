@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Login from './Login';
+import InicioPagina from './pages/InicioPagina.jsx';
 import CatalogoPagina from './pages/CatalogoPagina.jsx';
 import GestionarEventos from './pages/GestionarEventos.jsx';
 import InventarioPage from './pages/InventarioPage.jsx';
@@ -54,6 +55,7 @@ const normalizarRolUsuario = (datosUsuario, rolRespaldo = '') => {
 function App() {
     const [usuario, setUsuario] = useState(null);
     const [seccionActual, setSeccionActual] = useState('/home');
+    const [vistaPublica, setVistaPublica] = useState('inicio');
 
     useEffect(() => {
         const usuarioGuardado = localStorage.getItem('usuario');
@@ -75,6 +77,7 @@ function App() {
         localStorage.removeItem('rol');
         setUsuario(null);
         setSeccionActual('/home');
+        setVistaPublica('inicio');
     };
 
     const handleUpdateUsuario = (nuevoUsuario) => {
@@ -106,23 +109,29 @@ function App() {
     };
 
     if (!usuario) {
+        if (vistaPublica === 'inicio') {
+            return (
+                <InicioPagina
+                    alIrALogin={() => setVistaPublica('login')}
+                    alIrARegistro={() => setVistaPublica('registro')}
+                />
+            );
+        }
+
         return (
-            <Login 
+            <Login
+                modoInicial={vistaPublica}
+                alVolverInicio={() => setVistaPublica('inicio')}
                 onLoginSuccess={(user) => {
                     setUsuario(user);
                     setSeccionActual('/home');
-                }} 
+                }}
             />
         );
     }
 
-    const propsDeNavegacion = {
-        rutaActiva: seccionActual,
-        alSeleccionar: setSeccionActual,
-        onUpdateUsuario: handleUpdateUsuario,
-    };
-
     const rolDetectado = normalizarRolUsuario(usuario);
+    const esCliente = rolDetectado === 'CLIENTE';
 
     const rutDetectado = 
         usuario.rut || 
@@ -133,8 +142,28 @@ function App() {
         usuario.Run || 
         'No especificado';
 
+    const usuarioNormalizado = {
+        ...usuario,
+        rol: rolDetectado,
+        rut: rutDetectado,
+    };
+
+    const propsDeNavegacion = {
+        rutaActiva: seccionActual,
+        alSeleccionar: setSeccionActual,
+        onUpdateUsuario: handleUpdateUsuario,
+        usuario: usuarioNormalizado,
+        rol: rolDetectado,
+        soloLectura: esCliente,
+    };
+
+    const rutasPermitidasCliente = ['/home', '/horario', '/horario-compartido', '/catalogo'];
+    const rutaEfectiva = esCliente && !rutasPermitidasCliente.includes(seccionActual)
+        ? '/home'
+        : seccionActual;
+
     const renderVistaCentral = () => {
-        switch (seccionActual) {
+        switch (rutaEfectiva) {
             case '/eventos':
                 return <GestionarEventos {...propsDeNavegacion} />;
             case '/horario':
@@ -157,27 +186,31 @@ function App() {
             case '/home':
                 return (
                     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
-                        <div style={{ backgroundColor: '#ffffff', padding: '1.5rem 2rem', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ backgroundColor: '#ffffff', padding: '1.5rem 2rem', borderRadius: '16px', boxShadow: '0 4px 14px rgba(15, 23, 42, 0.06)', border: '1px solid #e2e8f0', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                             <div>
-                                <h1 style={{ color: '#523354', margin: '0 0 0.5rem 0', fontSize: '1.8rem' }}>Portal NES Eventos</h1>
-                                <p style={{ margin: '0 0 6px 0', color: '#334155', fontSize: '1.05rem' }}>
-                                    Hola, <strong>{usuario.nombre || usuario.Nombre || 'Usuario'}</strong>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.4rem' }}>
+                                    <h1 style={{ color: '#523354', margin: 0, fontSize: '1.75rem' }}>Portal NES Eventos</h1>
+                                    <span style={{ backgroundColor: '#f3e8ff', color: '#523354', padding: '3px 10px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700' }}>
+                                        {rolDetectado}
+                                    </span>
+                                </div>
+                                <p style={{ margin: '0 0 8px 0', color: '#334155', fontSize: '1.05rem' }}>
+                                    Bienvenido, <strong>{usuario.nombre || usuario.Nombre || 'Usuario'}</strong>
                                 </p>
-                                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#64748b' }}>
+                                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#64748b', flexWrap: 'wrap' }}>
                                     <span><strong>RUT:</strong> {rutDetectado}</span>
                                     <span><strong>Email:</strong> {usuario.email || 'No especificado'}</span>
-                                    <span><strong>Rol:</strong> {rolDetectado}</span>
                                 </div>
                             </div>
                             <button 
                                 onClick={handleLogout}
-                                style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                                style={{ backgroundColor: '#dc2626', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', boxShadow: '0 2px 6px rgba(220, 38, 38, 0.2)' }}
                             >
                                 Cerrar Sesión
                             </button>
                         </div>
 
-                        <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
+                        <div style={{ backgroundColor: '#ffffff', padding: '1.5rem', borderRadius: '16px', boxShadow: '0 4px 14px rgba(15, 23, 42, 0.06)', border: '1px solid #e2e8f0' }}>
                             <HorarioCompartidoPagina {...propsDeNavegacion} />
                         </div>
                     </div>
@@ -188,14 +221,15 @@ function App() {
                 return <MantencionesPagina {...propsDeNavegacion} />;
             case '/arrendados':
                 return <EquiposArrendadosPagina {...propsDeNavegacion} />;
+            case '/catalogo':
             default:
                 return <CatalogoPagina {...propsDeNavegacion} />;
         }
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#e2e8f0' }}>
-            <Sidebar {...propsDeNavegacion} usuario={{ ...usuario, rol: rolDetectado, rut: rutDetectado }} />
+        <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+            <Sidebar {...propsDeNavegacion} usuario={usuarioNormalizado} />
             <main style={{ flex: 1, minWidth: 0 }}>
                 {['GERENTE_GENERAL', 'PERSONAL_OPERACIONES'].includes(rolDetectado) && (
                     <CampanaAlertas />

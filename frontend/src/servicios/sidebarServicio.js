@@ -13,6 +13,7 @@ export function obtenerEstiloBoton(rutaItem, rutaActual = '/catalogo') {
     padding: '14px 24px',
     color: 'white',
     textDecoration: 'none',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
     fontSize: '15px',
     borderBottom: '1px solid rgba(255,255,255,0.1)',
     backgroundColor: esActivo ? '#523354' : 'transparent',
