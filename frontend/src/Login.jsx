@@ -123,7 +123,7 @@ export default function Login({ onLoginSuccess, modoInicial = 'login', alVolverI
           </button>
         )}
 
-        <img src="NES LOGO.png" alt="NES Eventos" style={styles.logo} />
+        <img src="NES-LOGO-NEW.png" alt="NES Eventos" style={styles.logo} />
 
         <div style={styles.tabs}>
           <button
@@ -296,12 +296,15 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f3e8ff 0%, #f1f5f9 50%, #e2e8f0 100%)',
+    background: 'url(fondologin.png)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
     fontFamily: 'system-ui, -apple-system, sans-serif',
     padding: '1.5rem',
+    backdropFilter: 'blur(2px)',
   },
   card: {
-    backgroundColor: '#ffffff',
+    background: 'white',
     padding: '2.25rem',
     borderRadius: '16px',
     boxShadow: '0 12px 30px rgba(82, 51, 84, 0.12)',
@@ -325,6 +328,7 @@ const styles = {
     height: 'auto',
     display: 'block',
     margin: '0 auto 1.25rem auto',
+    filter: 'drop-shadow(0 4px 10px rgba(238, 0, 255, 0.53))',
   },
   tabs: {
     display: 'grid',
