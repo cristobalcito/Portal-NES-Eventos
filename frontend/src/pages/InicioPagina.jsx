@@ -3,12 +3,12 @@ import React from 'react';
 export default function InicioPagina({ alIrALogin, alIrARegistro }) {
   const servicios = [
     {
-      titulo: 'Producción Integral de Eventos',
-      descripcion: 'Planificación, montaje y coordinación completa para eventos corporativos, institucionales y celebraciones de gran escala.'
+      titulo: 'Producción de Eventos',
+      descripcion: 'Planificación, montaje y coordinación completa para eventos corporativos, institucionales y celebraciones de cualquier escala.'
     },
     {
       titulo: 'Equipamiento Técnico y Audiovisual',
-      descripcion: 'Sistemas de sonido profesional, iluminación escénica, estructuras y respaldo técnico certificado en terreno.'
+      descripcion: 'Sistemas de sonido profesional, iluminación escénica, estructuras escenográficas y componentes de alto calibre para hacer de cada evento una experiencia memorable.'
     },
     {
       titulo: 'Logística y Flota Especializada',
@@ -16,14 +16,14 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
     },
     {
       titulo: 'Agenda y Disponibilidad en Línea',
-      descripcion: 'Consulta directa de fechas disponibles, seguimiento de etapas y coordinación transparente con nuestro equipo.'
+      descripcion: 'Consulta directa de fechas disponibles, seguimiento de etapas y coordinación transparente con nuestro equipo. Portal disponible a toda hora.'
     }
   ];
 
   const indicadores = [
-    { cifra: '100%', etiqueta: 'Coordinación en terreno' },
-    { cifra: '24/7', etiqueta: 'Soporte operativo en eventos' },
-    { cifra: '4 áreas', etiqueta: 'Producción, técnica, flota y personal' }
+    { cifra: '100% humano', etiqueta: 'Coordinación directa con los organizadores' },
+    { cifra: '24/7', etiqueta: 'Servicio de consultas en línea' },
+    { cifra: 'Toda ocasión', etiqueta: 'Eventos de todos los tamaños y colores' }
   ];
 
   return (
@@ -82,10 +82,10 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
           <div style={styles.heroTarjeta}>
             <div style={styles.tarjetaEncabezado}>
               <span style={styles.puntoEstado} />
-              <span style={styles.tarjetaTitulo}>Gestión Centralizada NES</span>
+              <span style={styles.tarjetaTitulo}>NES Eventos</span>
             </div>
             <p style={styles.tarjetaCuerpo}>
-              Accede con tu cuenta para revisar disponibilidad de fechas en el horario compartido, coordinar requerimientos técnicos o gestionar operaciones internas.
+              Accede con tu cuenta de cliente para revisar disponibilidad de fechas en el horario compartido y consultar precios.
             </p>
             <div style={styles.gridIndicadores}>
               {indicadores.map((item) => (
@@ -122,12 +122,17 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
         <div style={styles.contenedorNosotros}>
           <div style={styles.nosotrosTexto}>
             <span style={styles.subtituloSeccion}>Sobre la Empresa</span>
-            <h2 style={styles.tituloSeccion}>Compromiso, puntualidad y respaldo técnico</h2>
+            <h2 style={styles.tituloSeccion}>Nuestra misión</h2>
             <p style={styles.parrafoNosotros}>
-              NES Eventos nace con el propósito de entregar soluciones confiables en producción y logística de eventos. Cada proyecto cuenta con planificación previa de tiempos de traslado, montaje y desmontaje, asegurando el uso óptimo de recursos y equipos.
+              Entregar soluciones confiables en producción y logística de eventos, ofreciendo planificación previa de tiempos de traslado, montaje y desmontaje y asegurando el uso óptimo de recursos y equipos.
             </p>
+            <h2 style={styles.tituloSeccion}>Nuestra visión</h2>
             <p style={styles.parrafoNosotros}>
-              A través de nuestro portal digital, clientes y equipos operativos comparten una visión clara de la agenda y el estado de cada servicio.
+              Ser un referente en la industria de eventos, destacando por nuestra capacidad de adaptación, innovación y compromiso con la excelencia operativa y brindando una experiencia excepcional a nuestros clientes.
+            </p>
+            <h3 style={styles.tituloSeccion}>Portal en línea</h3>
+            <p style={styles.parrafoNosotros}>
+              A través de nuestro portal digital, tanto clientes como equipos operativos comparten una visión clara de la agenda y el estado de cada servicio.
             </p>
           </div>
 
@@ -137,7 +142,7 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
               Si ya tienes credenciales asignadas o deseas crear una cuenta de cliente para consultar fechas disponibles, ingresa directamente desde aquí.
             </p>
             <button type="button" onClick={alIrALogin} style={styles.btnPanel}>
-              Ir a Iniciar Sesión
+              Inicia sesión o regístrate
             </button>
           </div>
         </div>
@@ -147,7 +152,7 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
         <div style={styles.footerContenedor}>
           <div>
             <strong style={styles.footerMarca}>NES Eventos</strong>
-            <p style={styles.footerTexto}>Producción, equipamiento y logística integral de eventos.</p>
+            <p style={styles.footerTexto}>Producción, equipamiento y logística de eventos.</p>
           </div>
           <div style={styles.footerContacto}>
             <span>Contacto: contacto@nes-eventos.cl</span>
