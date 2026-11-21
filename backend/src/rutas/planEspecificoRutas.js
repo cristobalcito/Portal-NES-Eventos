@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { autenticarToken } = require('../middlewares/auth');
 const {
   crearPlanEspecifico,
   modificarPlanEspecifico,
@@ -11,7 +12,7 @@ const {
 
 // GET /api/planes-especificos
 // Obtiene la lista completa de planes específicos / eventos para el horario compartido
-router.get('/', obtenerPlanesEspecificos); 
+router.get('/', autenticarToken, obtenerPlanesEspecificos); 
 
 // POST /api/planes-especificos
 router.post('/', crearPlanEspecifico);

@@ -45,8 +45,21 @@ const obtenerPlanesEspecificos = async (req, res, next) => {
         fecha: 'asc'
       }
     });
-    const rolUsuario = (req.usuario?.rol || req.usuario?.tipo || '').toUpperCase();
-    if (rolUsuario === 'CLIENTE' || req.usuario?.cliente) {
+
+    let usuarioDb = null;
+    if (req.usuario?.rut) {
+      usuarioDb = await prisma.usuario.findUnique({
+        where: { rut: req.usuario.rut }
+      });
+    }
+
+    const rolUsuario = (req.usuario?.rol || req.usuario?.tipo || usuarioDb?.rol || '').toUpperCase();
+    const esCliente =
+      rolUsuario === 'CLIENTE' ||
+      Boolean(req.usuario?.cliente) ||
+      Boolean(usuarioDb?.cliente);
+
+    if (esCliente) {
       const disponibilidad = planes.map((plan) => ({
         idPE: plan.idPE,
         fecha: plan.fecha,
@@ -54,6 +67,7 @@ const obtenerPlanesEspecificos = async (req, res, next) => {
       }));
       return res.status(200).json(disponibilidad);
     }
+
     res.status(200).json(planes);
   } catch (error) {
     next(error);
