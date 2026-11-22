@@ -5,7 +5,9 @@ const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
 const formatearEvento = (evento) => ({
   ...evento,
-  id: evento.idPE
+  id: evento.idPE,
+  // Mapeamos ambos nombres para compatibilidad total con el frontend
+  asistentesConfirmados: evento.personasConfirmadas ?? 0
 });
 
 const esTextoValido = (valor) => typeof valor === 'string' && valor.trim().length > 0;
@@ -17,7 +19,7 @@ const mismoDia = (fechaA, fechaB) =>
 const calcularDiasRestantes = (fecha) => Math.ceil((new Date(fecha) - new Date()) / MS_POR_DIA);
 
 const validarDatosEvento = (body) => {
-  const { descripcion, lugar, fecha, numPersonas, personal, costoTotal, horario, asistentesConfirmados } = body;
+  const { descripcion, lugar, fecha, numPersonas, personal, costoTotal, horario, asistentesConfirmados, personasConfirmadas } = body;
   const errores = [];
 
   if (!esTextoValido(descripcion)) errores.push('La descripción es obligatoria.');
@@ -29,8 +31,9 @@ const validarDatosEvento = (body) => {
     errores.push('El número de personas debe ser un entero mayor a 0.');
   }
 
-  const confirmados = asistentesConfirmados !== undefined ? Number(asistentesConfirmados) : 0;
-  if (asistentesConfirmados !== undefined && (!Number.isInteger(confirmados) || confirmados < 0)) {
+  const valorConfirmados = personasConfirmadas !== undefined ? personasConfirmadas : asistentesConfirmados;
+  const confirmados = valorConfirmados !== undefined ? Number(valorConfirmados) : 0;
+  if (valorConfirmados !== undefined && (!Number.isInteger(confirmados) || confirmados < 0)) {
     errores.push('El número de asistentes confirmados debe ser un entero mayor o igual a 0.');
   }
   if (confirmados > personas) {
@@ -65,7 +68,7 @@ const validarDatosEvento = (body) => {
       lugar: lugar.trim(),
       fecha: new Date(fecha),
       numPersonas: personas,
-      asistentesConfirmados: confirmados,
+      personasConfirmadas: confirmados, // Nombre exacto en Prisma
       personal: esTextoValido(personal) ? personal.trim() : 'No asignado',
       costoTotal: costo
     },
@@ -184,7 +187,8 @@ const actualizarAsistencia = async (req, res) => {
     const eventoActual = await prisma.planEspecifico.findUnique({ where: { idPE: id } });
     if (!eventoActual) return res.status(404).json({ mensaje: 'El evento no existe.' });
 
-    const confirmados = Number(req.body.asistentesConfirmados);
+    const valorRecibido = req.body.personasConfirmadas !== undefined ? req.body.personasConfirmadas : req.body.asistentesConfirmados;
+    const confirmados = Number(valorRecibido);
     if (!Number.isInteger(confirmados) || confirmados < 0) {
       return res.status(400).json({ mensaje: 'El número de confirmados debe ser un entero mayor o igual a 0.' });
     }
@@ -194,7 +198,7 @@ const actualizarAsistencia = async (req, res) => {
 
     const eventoEditado = await prisma.planEspecifico.update({
       where: { idPE: id },
-      data: { asistentesConfirmados: confirmados },
+      data: { personasConfirmadas: confirmados }, // Nombre exacto en Prisma
       include: { horario: true }
     });
 
