@@ -1,40 +1,63 @@
 
 const prisma = require('../lib/prisma');
+const { generarAlertasLogisticas } = require('../servicios/alertasServicio');
+const { TIPOS_OPERATIVOS, actualizarAlertasOperativas } = require('../servicios/alertasOperativasServicio');
+
+const TIPO_LOGISTICO = 'RECORDATORIO_LOGISTICO';
+const camposAlerta = {
+  idAL: true,
+  razon: true,
+  contenido: true,
+  tipo: true,
+  leida: true,
+  creadaEn: true
+};
+
+const listarRecordatoriosLogisticos = async () => {
+  const eventosVigentes = await generarAlertasLogisticas();
+  return prisma.alerta.findMany({
+    where: { tipo: TIPO_LOGISTICO, planEspecificoId: { in: eventosVigentes } },
+    select: {
+      ...camposAlerta,
+      planEspecificoId: true,
+      planEspecifico: { select: { idPE: true, descripcion: true, fecha: true, lugar: true } }
+    }
+  });
+};
+
+const listarAlertasOperativas = async () => {
+  try {
+    await actualizarAlertasOperativas();
+    const datos = await prisma.alerta.findMany({
+      where: { tipo: { in: TIPOS_OPERATIVOS } },
+      select: { ...camposAlerta, claveIncidencia: true, resueltaEn: true }
+    });
+    return { datos };
+  } catch (error) {
+    console.error('Error al consultar avisos operativos:', error);
+    return { datos: [], aviso: 'No se pudieron actualizar los avisos operativos.' };
+  }
+};
 
 // GET /api/alertas
 const obtenerAlertas = async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
   try {
-    const alertas = await prisma.alerta.findMany({
-      where: {
-        tipo: 'RECORDATORIO_LOGISTICO',
-        planEspecificoId: { not: null }
-      },
-      select: {
-        idAL: true,
-        razon: true,
-        contenido: true,
-        tipo: true,
-        leida: true,
-        creadaEn: true,
-        planEspecificoId: true,
-        planEspecifico: {
-          select: {
-            idPE: true,
-            descripcion: true,
-            fecha: true,
-            lugar: true
-          }
-        }
-      },
-      orderBy: {
-        creadaEn: 'desc'
-      }
-    });
+    const [recordatorios, operativas] = await Promise.all([
+      listarRecordatoriosLogisticos(),
+      listarAlertasOperativas()
+    ]);
+    const alertas = [...recordatorios, ...operativas.datos].sort((a, b) =>
+      Number(Boolean(a.resueltaEn)) - Number(Boolean(b.resueltaEn)) ||
+      b.creadaEn - a.creadaEn || b.idAL - a.idAL
+    );
 
     return res.status(200).json({
       success: true,
       total: alertas.length,
-      datos: alertas
+      datos: alertas,
+      aviso: operativas.aviso
     });
   } catch (error) {
     console.error('Error al obtener alertas:', error);
@@ -61,8 +84,10 @@ const marcarAlertaLeida = async (req, res) => {
     const resultado = await prisma.alerta.updateMany({
       where: {
         idAL: id,
-        tipo: 'RECORDATORIO_LOGISTICO',
-        planEspecificoId: { not: null }
+        OR: [
+          { tipo: TIPO_LOGISTICO, planEspecificoId: { not: null } },
+          { tipo: { in: TIPOS_OPERATIVOS } }
+        ]
       },
       data: {
         leida: true

@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { STOCK_BAJO, actualizarAlertasTrasGuardar } = require('../servicios/alertasOperativasServicio');
 
 const obtenerInventario = async (req, res, next) => {
   try {
@@ -25,6 +26,7 @@ const crearProducto = async (req, res, next) => {
       },
     });
 
+    await actualizarAlertasTrasGuardar(STOCK_BAJO);
     res.status(201).json(nuevoProducto);
   } catch (error) {
     next(error);
@@ -69,6 +71,7 @@ const verificarYReservarStock = async (req, res, next) => {
       }
     });
 
+    await actualizarAlertasTrasGuardar(STOCK_BAJO);
     res.status(200).json({
       exito: true,
       mensaje: `Reserva exitosa de ${cantidad} unidad(es) de ${item.producto} para el evento ${idPE ? `#${idPE}` : 'programado'}.`,

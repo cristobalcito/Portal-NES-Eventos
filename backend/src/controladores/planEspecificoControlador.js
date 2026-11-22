@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { CRUCE_AGENDA, actualizarAlertasTrasGuardar } = require('../servicios/alertasOperativasServicio');
 const {
   evaluarAjusteAsistentes,
   evaluarReprogramacionFecha
@@ -187,6 +188,7 @@ const reprogramarFecha = async (req, res, next) => {
       where: { idPE: parseInt(id, 10) },
       data: { fecha: fechaObj }
     });
+    await actualizarAlertasTrasGuardar(CRUCE_AGENDA);
 
     return res.status(200).json({
       mensaje: evaluacion.mensaje,
