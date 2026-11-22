@@ -11,6 +11,23 @@ export async function obtenerPlanesBaseServicio() {
   return resultado;
 }
 
+export async function obtenerPermisoCatalogoServicio() {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+
+  const respuesta = await fetch(`${API_BASE_URL}/catalogo/planes-base/permisos`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (respuesta.status === 401 || respuesta.status === 403) return false;
+  if (!respuesta.ok) {
+    throw new Error('Error al consultar el permiso de gestión del catálogo');
+  }
+
+  const resultado = await respuesta.json();
+  return resultado.puedeGestionarPlanesBase === true;
+}
+
 export async function crearPlanBaseServicio(datosNuevoPlan) {
   const token = localStorage.getItem('token');
 

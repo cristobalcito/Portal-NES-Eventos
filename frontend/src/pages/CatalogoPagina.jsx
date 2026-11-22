@@ -4,6 +4,7 @@ import VentanaEmergenteCatalogoComponente from '../components/ventanaEmergenteCa
 
 import {
   obtenerPlanesBaseServicio,
+  obtenerPermisoCatalogoServicio,
   crearPlanBaseServicio,
   modificarPlanBaseServicio,
   eliminarPlanBaseServicio
@@ -13,28 +14,13 @@ export default function CatalogoPagina() {
   const [planes, setPlanes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [puedeGestionarPlanesBase, setPuedeGestionarPlanesBase] = useState(false);
   
   const [modalAbierto, setModalAbierto] = useState(false);
   const [planAEditar, setPlanAEditar] = useState(null);
 
   // Referencia a la caja deslizante de planes
   const contenedorCarruselRef = useRef(null);
-
-  // Extraer datos del usuario desde localStorage para validar rol
-  let esGerenteGeneral = false;
-  try {
-    const usuarioRaw = localStorage.getItem('usuario');
-    if (usuarioRaw) {
-      const usuario = JSON.parse(usuarioRaw);
-      const nombre = (usuario.nombre || '').toLowerCase();
-      const email = (usuario.email || '').toLowerCase();
-      const rol = (usuario.rol || '').toUpperCase();
-
-      esGerenteGeneral = rol === 'GERENTE_GENERAL' || nombre.includes('gerente') || email.includes('gerente');
-    }
-  } catch (e) {
-    console.error('Error al leer sesión:', e);
-  }
 
   const cargarPlanes = () => {
     setCargando(true);
@@ -53,6 +39,9 @@ export default function CatalogoPagina() {
 
   useEffect(() => {
     cargarPlanes();
+    obtenerPermisoCatalogoServicio()
+      .then(setPuedeGestionarPlanesBase)
+      .catch((err) => console.error('Error al consultar los permisos del catálogo:', err));
   }, []);
 
   // Control de desplazamiento horizontal suave
@@ -160,7 +149,7 @@ export default function CatalogoPagina() {
           </span>
         </div>
         
-        {esGerenteGeneral && (
+        {puedeGestionarPlanesBase && (
           <button
             onClick={abrirModalCrear}
             style={{
@@ -255,7 +244,7 @@ export default function CatalogoPagina() {
                     descripcion={plan.descripcion || 'Sin descripción'}
                   />
 
-                  {esGerenteGeneral && (
+                  {puedeGestionarPlanesBase && (
                     <div style={{ 
                       display: 'grid',
                       gridTemplateColumns: '1fr 1fr',
