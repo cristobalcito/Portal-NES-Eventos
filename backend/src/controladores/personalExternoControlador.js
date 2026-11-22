@@ -1,8 +1,12 @@
-var { PrismaClient } = require('@prisma/client');
-var prisma = new PrismaClient();
+const prisma = require('../lib/prisma');
+
+const incluirFicha = {
+  curriculum: { select: { rut: true } },
+  usuario: { select: { rut: true, nombre: true, email: true } }
+};
 
 /**
- * Registra un nuevo miembro del personal eventual (RF-FC-01)
+ * Actualiza la ficha del personal eventual (RF-FC-01)
  */
 var registrarPersonal = async function(req, res) {
   try {
@@ -14,8 +18,10 @@ var registrarPersonal = async function(req, res) {
       fono,
       experiencia,
       datosDePago,
-      tallaDeRopa
+      tallaDeRopa,
+      eliminarCurriculum
     } = req.body;
+    const borrarCurriculum = eliminarCurriculum === true || eliminarCurriculum === 'true';
 
     // Validar que se haya enviado el RUT
     if (!rut) {
@@ -25,39 +31,48 @@ var registrarPersonal = async function(req, res) {
       });
     }
 
-    // Buscar la ficha creada previamente por el GG
-    var personalExistente = await prisma.personalEventual.findUnique({
-      where: { rut: rut }
-    });
-
-    if (!personalExistente) {
-      return res.status(404).json({
+    if (borrarCurriculum && req.file) {
+      return res.status(400).json({
         success: false,
-        mensaje: 'El trabajador no existe. Primero debe ser registrado por el Gerente General.'
+        mensaje: 'Elige entre quitar el currículum o adjuntar un reemplazo.'
       });
     }
 
-    // Actualizar los antecedentes laborales
-    var personalActualizado = await prisma.personalEventual.update({
-      where: { rut: rut },
+    const actualizarFicha = prisma.personalEventual.update({
+      where: { rut },
       data: {
-        rol: rol,
-        disponibilidad: disponibilidad,
-        fono: fono,
-        experiencia: experiencia,
-        datosDePago: datosDePago,
-        tallaDeRopa: tallaDeRopa
+        rol,
+        disponibilidad,
+        fono,
+        experiencia,
+        datosDePago,
+        tallaDeRopa
       },
-      include: {
-        usuario: {
-          select: {
-            rut: true,
-            nombre: true,
-            email: true
-          }
-        }
-      }
+      include: incluirFicha
     });
+
+    let personalActualizado;
+    if (req.file) {
+      const contenido = req.file.buffer;
+      const [ficha, curriculum] = await prisma.$transaction([
+        actualizarFicha,
+        prisma.curriculumPersonal.upsert({
+          where: { rut },
+          create: { rut, contenido },
+          update: { contenido },
+          select: { rut: true }
+        })
+      ]);
+      personalActualizado = { ...ficha, curriculum };
+    } else if (borrarCurriculum) {
+      const [ficha] = await prisma.$transaction([
+        actualizarFicha,
+        prisma.curriculumPersonal.deleteMany({ where: { rut } })
+      ]);
+      personalActualizado = { ...ficha, curriculum: null };
+    } else {
+      personalActualizado = await actualizarFicha;
+    }
 
     return res.status(200).json({
       success: true,
@@ -66,6 +81,13 @@ var registrarPersonal = async function(req, res) {
     });
 
   } catch (error) {
+    if (error.code === 'P2025' || error.code === 'P2003') {
+      return res.status(404).json({
+        success: false,
+        mensaje: 'El trabajador no existe. Primero debe ser registrado por el Gerente General.'
+      });
+    }
+
     console.error('Error al actualizar personal eventual:', error);
 
     return res.status(500).json({
@@ -81,15 +103,7 @@ var registrarPersonal = async function(req, res) {
 var obtenerPersonal = async function(req, res) {
   try {
     var listaPersonal = await prisma.personalEventual.findMany({
-      include: {
-        usuario: {
-          select: {
-            rut: true,
-            nombre: true,
-            email: true
-          }
-        }
-      }
+      include: incluirFicha
     });
 
     return res.status(200).json({
@@ -107,7 +121,33 @@ var obtenerPersonal = async function(req, res) {
   }
 };
 
+async function obtenerCurriculum(req, res) {
+  try {
+    const curriculum = await prisma.curriculumPersonal.findUnique({
+      where: { rut: req.params.rut },
+      select: { contenido: true }
+    });
+
+    if (!curriculum) {
+      return res.status(404).json({ mensaje: 'La ficha no tiene currículum.' });
+    }
+
+    const disposicion = req.query.vista === '1' ? 'inline' : 'attachment';
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `${disposicion}; filename="curriculum.pdf"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    return res.send(Buffer.from(curriculum.contenido));
+  } catch (error) {
+    console.error('Error al obtener el currículum:', error);
+    return res.status(500).json({ mensaje: 'No se pudo obtener el currículum.' });
+  }
+}
+
 module.exports = {
   registrarPersonal,
-  obtenerPersonal
+  obtenerPersonal,
+  obtenerCurriculum
 };

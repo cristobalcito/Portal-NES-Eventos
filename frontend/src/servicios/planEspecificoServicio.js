@@ -1,17 +1,43 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// Función para obtener headers con autenticación/rol (RBAC)
-const obtenerHeaders = () => {
-  const token = localStorage.getItem('token');
-  const rol = localStorage.getItem('rol') || 'GERENTE_GENERAL'; // Rol por defecto de prueba
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : '',
-    'x-user-role': rol
-  };
+const obtenerRolActivo = () => {
+  const rolDirecto = localStorage.getItem('rol');
+  if (rolDirecto) return rolDirecto;
+
+  try {
+    const usuarioRaw = localStorage.getItem('usuario');
+    if (usuarioRaw) {
+      const usuario = JSON.parse(usuarioRaw);
+      if (usuario.rol) return usuario.rol;
+      if (usuario.tipo) return usuario.tipo;
+      if (usuario.cliente) return 'CLIENTE';
+      if (usuario.personalEventual) return 'PERSONAL_EVENTUAL';
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
 };
 
-// 1. Obtener todos los planes específicos / eventos del horario compartido
+const obtenerHeaders = () => {
+  const token = localStorage.getItem('token');
+  const rol = obtenerRolActivo();
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (rol) {
+    headers['x-user-role'] = rol;
+  }
+
+  return headers;
+};
+
 export const obtenerPlanesEspecificosServicio = async () => {
   const res = await fetch(`${API_URL}/api/planes-especificos`, {
     headers: obtenerHeaders()
@@ -23,7 +49,6 @@ export const obtenerPlanesEspecificosServicio = async () => {
   return await res.json();
 };
 
-// 2. Modificar un plan específico (Aplica recargo del 5% entre 7 y 13 días)
 export const modificarPlanEspecificoServicio = async (idPE, datos) => {
   const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}`, {
     method: 'PUT',
@@ -37,7 +62,6 @@ export const modificarPlanEspecificoServicio = async (idPE, datos) => {
   return await res.json();
 };
 
-// 3. Eliminar / Cancelar un plan específico (Aplica reembolso del 50% si es < 7 días)
 export const eliminarPlanEspecificoServicio = async (idPE) => {
   const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}`, {
     method: 'DELETE',
@@ -50,7 +74,6 @@ export const eliminarPlanEspecificoServicio = async (idPE) => {
   return await res.json();
 };
 
-// 4. Ajustar asistentes con reglas temporales (RF4)
 export const ajustarAsistentesServicio = async (idPE, nuevosAsistentes) => {
   const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}/ajustar-asistentes`, {
     method: 'PUT',
@@ -64,7 +87,6 @@ export const ajustarAsistentesServicio = async (idPE, nuevosAsistentes) => {
   return datos;
 };
 
-// 5. Reprogramar fecha con reglas temporales (RF5)
 export const reprogramarFechaServicio = async (idPE, nuevaFecha) => {
   const res = await fetch(`${API_URL}/api/planes-especificos/${idPE}/reprogramar-fecha`, {
     method: 'PUT',
