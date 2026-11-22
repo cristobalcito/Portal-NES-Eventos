@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   obtenerAlertasServicio,
   marcarAlertaLeidaServicio
@@ -11,17 +11,28 @@ export default function CampanaAlertas() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [actualizandoId, setActualizandoId] = useState(null);
+  const cargaEnCursoRef = useRef(false);
 
   const cargarAlertas = async () => {
+    if (cargaEnCursoRef.current) return;
+    cargaEnCursoRef.current = true;
     setCargando(true);
     setError('');
 
     try {
       const respuesta = await obtenerAlertasServicio();
-      setAlertas(respuesta.datos || []);
+      const nuevasAlertas = respuesta.datos || [];
+      setAlertas((anteriores) => {
+        // Un listado iniciado antes de marcar una alerta puede devolver su estado anterior.
+        const idsLeidos = new Set(anteriores.filter((alerta) => alerta.leida).map((alerta) => alerta.idAL));
+        return nuevasAlertas.map((alerta) =>
+          idsLeidos.has(alerta.idAL) ? { ...alerta, leida: true } : alerta
+        );
+      });
     } catch (err) {
       setError(err.message || 'No se pudieron cargar las alertas.');
     } finally {
+      cargaEnCursoRef.current = false;
       setCargando(false);
     }
   };
@@ -80,7 +91,8 @@ export default function CampanaAlertas() {
       <button
         type="button"
         onClick={() => {
-          setAbierto((anterior) => !anterior);
+          setAbierto(!abierto);
+          if (!abierto) cargarAlertas();
         }}
         aria-expanded={abierto}
         aria-label={`Notificaciones: ${pendientes} pendientes`}

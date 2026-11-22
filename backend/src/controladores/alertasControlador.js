@@ -1,13 +1,17 @@
 
 const prisma = require('../lib/prisma');
+const { generarAlertasLogisticas } = require('../servicios/alertasServicio');
 
 // GET /api/alertas
 const obtenerAlertas = async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+
   try {
+    const eventosVigentes = await generarAlertasLogisticas();
     const alertas = await prisma.alerta.findMany({
       where: {
         tipo: 'RECORDATORIO_LOGISTICO',
-        planEspecificoId: { not: null }
+        planEspecificoId: { in: eventosVigentes }
       },
       select: {
         idAL: true,
