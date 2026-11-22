@@ -1,5 +1,7 @@
 const prisma = require('../lib/prisma');
 const { obtenerRolUsuario, puedeFinalizarMantencion } = require('../servicios/permisosServicio');
+const { MANTENCION_ACTIVA, estaAtrasada } = require('../servicios/estadoMantencion');
+const { STOCK_BAJO, MANTENCION_PENDIENTE, actualizarAlertasTrasGuardar } = require('../servicios/alertasOperativasServicio');
 
 const datosEquipo = { inventario: { select: { id: true, producto: true, marca: true } } };
 
@@ -8,7 +10,7 @@ const esFechaValida = (valor) => valor && !isNaN(new Date(valor).getTime());
 
 const agregarAtraso = (mantencion) => ({
   ...mantencion,
-  atrasada: mantencion.estado === 'en mantención' && new Date() > new Date(mantencion.fechaRetornoEstimada)
+  atrasada: estaAtrasada(mantencion)
 });
 
 const validarDatos = (datos) => {
@@ -111,6 +113,7 @@ const registrarMantencion = async (req, res) => {
       include: datosEquipo
     });
 
+    await actualizarAlertasTrasGuardar(STOCK_BAJO, MANTENCION_PENDIENTE);
     res.status(201).json(agregarAtraso(nuevaMantencion));
   } catch (error) {
     console.error('Error al registrar la mantención:', error);
@@ -128,7 +131,7 @@ const actualizarMantencion = async (req, res) => {
     if (!mantencion) {
       return res.status(404).json({ mensaje: 'La mantención no existe.' });
     }
-    if (mantencion.estado !== 'en mantención') {
+    if (mantencion.estado !== MANTENCION_ACTIVA) {
       return res.status(400).json({ mensaje: 'Solo se pueden editar equipos que siguen en mantención.' });
     }
 
@@ -150,6 +153,7 @@ const actualizarMantencion = async (req, res) => {
       include: datosEquipo
     });
 
+    await actualizarAlertasTrasGuardar(MANTENCION_PENDIENTE);
     res.json(agregarAtraso(mantencionEditada));
   } catch (error) {
     console.error('Error al editar la mantención:', error);
@@ -174,7 +178,7 @@ const finalizarMantencion = async (req, res) => {
     if (!mantencion) {
       return res.status(404).json({ mensaje: 'La mantención no existe.' });
     }
-    if (mantencion.estado !== 'en mantención') {
+    if (mantencion.estado !== MANTENCION_ACTIVA) {
       return res.status(400).json({ mensaje: 'Esta mantención ya fue finalizada.' });
     }
 
@@ -198,6 +202,7 @@ const finalizarMantencion = async (req, res) => {
       include: datosEquipo
     });
 
+    await actualizarAlertasTrasGuardar(STOCK_BAJO, MANTENCION_PENDIENTE);
     res.json(agregarAtraso(mantencionFinalizada));
   } catch (error) {
     console.error('Error al finalizar la mantención:', error);

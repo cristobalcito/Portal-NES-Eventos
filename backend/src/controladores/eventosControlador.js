@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const reglasEventos = require('../servicios/reglasEventosServicio');
+const { CRUCE_AGENDA, actualizarAlertasTrasGuardar } = require('../servicios/alertasOperativasServicio');
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -110,6 +111,7 @@ const crearEvento = async (req, res) => {
       include: { horario: true }
     });
 
+    await actualizarAlertasTrasGuardar(CRUCE_AGENDA);
     res.status(201).json(formatearEvento(nuevoEvento));
   } catch (error) {
     console.error("Error al crear el evento:", error);
@@ -204,6 +206,7 @@ const actualizarEvento = async (req, res) => {
       include: { horario: true }
     });
 
+    await actualizarAlertasTrasGuardar(CRUCE_AGENDA);
     res.status(200).json({ evento: formatearEvento(eventoEditado), avisos });
   } catch (error) {
     console.error("Error al editar el evento:", error);
@@ -248,6 +251,7 @@ const eliminarEvento = async (req, res) => {
     if (!id) return res.status(400).json({ mensaje: 'El id del evento no es válido.' });
 
     await prisma.planEspecifico.delete({ where: { idPE: id } });
+    await actualizarAlertasTrasGuardar(CRUCE_AGENDA);
     res.status(200).json({ mensaje: 'Evento eliminado correctamente.' });
   } catch (error) {
     if (error.code === 'P2025') {
@@ -295,6 +299,7 @@ const importarEventos = async (req, res) => {
       creados.push(formatearEvento(nuevoEvento));
     }
 
+    if (creados.length) await actualizarAlertasTrasGuardar(CRUCE_AGENDA);
     res.status(201).json({ creados, errores: conErrores });
   } catch (error) {
     console.error("Error al importar eventos:", error);

@@ -57,6 +57,7 @@ const revisarEventos = async () => {
     try {
       await prisma.alerta.upsert({
         where: { planEspecificoId_tipo: clave },
+        select: { idAL: true },
         update: { contenido },
         create: {
           ...clave,

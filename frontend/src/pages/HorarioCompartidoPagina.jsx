@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { obtenerPlanesEspecificosServicio } from '../servicios/planEspecificoServicio.js';
+import { calcularBloqueOperativo, detectarCrucesDelDia, extraerFechaClave } from '../utilidades/agendaOperativa.js';
 
-const HORAS_MARGEN_OPERATIVO = 3;
 const UMBRAL_EVENTO_GRANDE = 100;
 const FLOTA_TOTAL_VEHICULOS = 4;
 
@@ -24,31 +24,10 @@ const obtenerDatosEstado = (evento) => {
   return CATALOGO_ESTADOS[clave] || { etiqueta: raw, bg: '#e2e8f0', color: '#334155' };
 };
 
-const extraerFechaClave = (valorFecha) => {
-  if (!valorFecha) return null;
-  if (typeof valorFecha === 'string' && /^\d{4}-\d{2}-\d{2}/.test(valorFecha)) {
-    return valorFecha.slice(0, 10);
-  }
-  const d = new Date(valorFecha);
-  if (Number.isNaN(d.getTime())) return null;
-  const anoEv = d.getFullYear();
-  const mesEv = String(d.getMonth() + 1).padStart(2, '0');
-  const diaEv = String(d.getDate()).padStart(2, '0');
-  return `${anoEv}-${mesEv}-${diaEv}`;
-};
-
 const formatearFechaLegible = (fechaClave) => {
   if (!fechaClave || !/^\d{4}-\d{2}-\d{2}$/.test(fechaClave)) return fechaClave || '';
   const [anio, mes, dia] = fechaClave.split('-');
   return `${dia}/${mes}/${anio}`;
-};
-
-const extraerListaPersonal = (texto) => {
-  if (!texto) return [];
-  return String(texto)
-    .split(/[,;/]+/)
-    .map((p) => p.trim().toLowerCase())
-    .filter((p) => p.length > 0 && p !== 'sin asignar' && p !== 'no especificado');
 };
 
 const obtenerSesionUsuario = () => {
@@ -206,46 +185,6 @@ export default function HorarioCompartidoPagina() {
     return pct > 100 ? 100 : pct;
   };
 
-  const calcularBloqueOperativo = (evento) => {
-    const fechaBaseStr = extraerFechaClave(evento.fecha) || '2026-01-01';
-    const [anio, mesBase, diaBase] = fechaBaseStr.split('-').map(Number);
-
-    const salidaRaw = evento.horario?.horaSalida;
-    const vueltaRaw = evento.horario?.horaVuelta || evento.horario?.horaLlegada;
-
-    let inicioBase;
-    let finBase;
-
-    if (salidaRaw && vueltaRaw) {
-      inicioBase = new Date(salidaRaw);
-      finBase = new Date(vueltaRaw);
-    } else {
-      inicioBase = new Date(anio, mesBase - 1, diaBase, 8, 0, 0, 0);
-      finBase = new Date(anio, mesBase - 1, diaBase, 16, 0, 0, 0);
-    }
-
-    if (inicioBase.getTime() === finBase.getTime()) {
-      inicioBase = new Date(anio, mesBase - 1, diaBase, 8, 0, 0, 0);
-      finBase = new Date(anio, mesBase - 1, diaBase, 16, 0, 0, 0);
-    }
-
-    const msMargen = HORAS_MARGEN_OPERATIVO * 60 * 60 * 1000;
-    const inicioBloqueo = new Date(inicioBase.getTime() - msMargen);
-    const finBloqueo = new Date(finBase.getTime() + msMargen);
-
-    const formatear = (d) =>
-      d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-
-    return {
-      inicioBase,
-      finBase,
-      inicioBloqueo,
-      finBloqueo,
-      textoEvento: `${formatear(inicioBase)} - ${formatear(finBase)}`,
-      textoBloqueo: `${formatear(inicioBloqueo)} - ${formatear(finBloqueo)}`,
-    };
-  };
-
   const analizarDiaOperativo = (eventosDelDia) => {
     if (!eventosDelDia || eventosDelDia.length === 0) {
       return {
@@ -268,31 +207,18 @@ export default function HorarioCompartidoPagina() {
         bloque: calcularBloqueOperativo(ev),
         esGrande,
         infoEstado: obtenerDatosEstado(ev),
-        listaPersonal: extraerListaPersonal(ev.personal),
       };
     });
 
     const cruces = [];
-    for (let i = 0; i < conBloques.length; i++) {
-      for (let j = i + 1; j < conBloques.length; j++) {
-        const a = conBloques[i];
-        const b = conBloques[j];
-        const seSolapan =
-          a.bloque.inicioBloqueo < b.bloque.finBloqueo &&
-          b.bloque.inicioBloqueo < a.bloque.finBloqueo;
-
-        if (seSolapan) {
-          cruces.push(
-            `Cruce operativo entre "${a.descripcion || 'Evento 1'}" (${a.bloque.textoBloqueo}) y "${b.descripcion || 'Evento 2'}" (${b.bloque.textoBloqueo}).`
-          );
-
-          const personalRepetido = a.listaPersonal.filter((p) => b.listaPersonal.includes(p));
-          if (personalRepetido.length > 0) {
-            cruces.push(
-              `Personal duplicado en horario solapado: ${personalRepetido.join(', ')} asignado simultáneamente a "${a.descripcion || 'Evento 1'}" y "${b.descripcion || 'Evento 2'}".`
-            );
-          }
-        }
+    for (const { a, b, personalRepetido } of detectarCrucesDelDia(conBloques)) {
+      cruces.push(
+        `Cruce operativo entre "${a.descripcion || 'Evento 1'}" (${a.bloque.textoBloqueo}) y "${b.descripcion || 'Evento 2'}" (${b.bloque.textoBloqueo}).`
+      );
+      if (personalRepetido.length) {
+        cruces.push(
+          `Personal duplicado en horario solapado: ${personalRepetido.join(', ')} asignado simult?neamente a "${a.descripcion || 'Evento 1'}" y "${b.descripcion || 'Evento 2'}".`
+        );
       }
     }
 
