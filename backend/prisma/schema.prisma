@@ -18,6 +18,7 @@ model Usuario {
   personalOperaciones PersonalOperaciones?
   cliente             Cliente?
   personalEventual    PersonalEventual?
+  reservasVehiculos   ReservaVehiculo[]
 }
 
 model GerenteGeneral {
@@ -51,6 +52,7 @@ model PersonalEventual {
   usuario             Usuario @relation(fields: [rut], references: [rut], onDelete: Cascade)
   rol                 String?
   disponibilidad      String?
+  licencias           String[]            @default([])
   fono                String?
   experiencia         String?
   evaluacionDesempeno String?
@@ -69,10 +71,17 @@ model CurriculumPersonal {
 // Recursos de la compañía
 
 model Vehiculo {
-  matricula           String                @id
-  conductor           String
-  especificaciones    String
+  patente             String                @id
+  tipoAuto            String
+  revisionTecnica     String?
+  antecedentes        String?
+  permisoCirculacion  String?
+  tipoLicencia        String
+  enMantencion        Boolean               @default(false)
+  creadoEn            DateTime              @default(now())
+  actualizadoEn       DateTime              @updatedAt
   personalOperaciones PersonalOperaciones[]
+  reservas            ReservaVehiculo[]
 }
 
 model Equipamiento {
@@ -117,6 +126,7 @@ model PlanEspecifico {
   horario           Horario?
   equiposArrendados EquipoArrendado[]
   alertas           Alerta[]
+  reservasVehiculos   ReservaVehiculo[]
 }
 
 model Horario {
@@ -223,4 +233,18 @@ model EquipoArrendado {
   createdAt           DateTime       @default(now())
 
   @@map("equipo_arrendado")
+}
+
+model ReservaVehiculo {
+  id               Int            @id @default(autoincrement())
+  vehiculoPatente  String
+  vehiculo         Vehiculo       @relation(fields: [vehiculoPatente], references: [patente], onDelete: Cascade, onUpdate: Cascade)
+  conductorRut     String
+  conductor        Usuario        @relation(fields: [conductorRut], references: [rut], onDelete: Cascade)
+  planEspecificoId Int
+  planEspecifico   PlanEspecifico @relation(fields: [planEspecificoId], references: [idPE], onDelete: Cascade)
+  estado           String         @default("RESERVADO")
+  creadoEn         DateTime       @default(now())
+
+  @@unique([vehiculoPatente, planEspecificoId])
 }

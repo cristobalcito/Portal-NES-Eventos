@@ -11,6 +11,8 @@ export default function Sidebar({ rutaActiva = '/catalogo', alSeleccionar, usuar
     { nombre: 'Mantenciones', ruta: '/mantenciones' },
     { nombre: 'Equipos arrendados', ruta: '/arrendados' },
     { nombre: 'Catálogo', ruta: '/catalogo' },
+    { nombre: 'Vehículos', ruta: '/vehiculos' }
+
   ];
 
   // Si el usuario logueado es GERENTE_GENERAL, agregamos la opción exclusiva

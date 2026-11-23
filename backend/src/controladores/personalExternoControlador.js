@@ -1,5 +1,38 @@
 const prisma = require('../lib/prisma');
 
+const LICENCIAS_VALIDAS = [
+  'Clase B',
+  'Clase A2',
+  'Clase A3',
+  'Clase A4',
+  'Clase A5',
+  'Clase D'
+];
+
+const parsearLicencias = (valor) => {
+  if (!valor) return [];
+  let lista = [];
+
+  if (Array.isArray(valor)) {
+    lista = valor;
+  } else if (typeof valor === 'string') {
+    const texto = valor.trim();
+    if (!texto) return [];
+    if (texto.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(texto);
+        lista = Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        lista = [];
+      }
+    } else {
+      lista = texto.split(',').map((item) => item.trim());
+    }
+  }
+
+  return [...new Set(lista.filter((lic) => LICENCIAS_VALIDAS.includes(lic)))];
+};
+
 const incluirFicha = {
   curriculum: { select: { rut: true } },
   usuario: { select: { rut: true, nombre: true, email: true } }
@@ -15,6 +48,7 @@ var registrarPersonal = async function(req, res) {
     var {
       rol,
       disponibilidad,
+      licencias,
       fono,
       experiencia,
       datosDePago,
@@ -23,7 +57,6 @@ var registrarPersonal = async function(req, res) {
     } = req.body;
     const borrarCurriculum = eliminarCurriculum === true || eliminarCurriculum === 'true';
 
-    // Validar que se haya enviado el RUT
     if (!rut) {
       return res.status(400).json({
         success: false,
@@ -38,16 +71,22 @@ var registrarPersonal = async function(req, res) {
       });
     }
 
+    const datosActualizar = {
+      rol,
+      disponibilidad,
+      fono,
+      experiencia,
+      datosDePago,
+      tallaDeRopa
+    };
+
+    if (licencias !== undefined) {
+      datosActualizar.licencias = parsearLicencias(licencias);
+    }
+
     const actualizarFicha = prisma.personalEventual.update({
       where: { rut },
-      data: {
-        rol,
-        disponibilidad,
-        fono,
-        experiencia,
-        datosDePago,
-        tallaDeRopa
-      },
+      data: datosActualizar,
       include: incluirFicha
     });
 

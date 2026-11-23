@@ -435,11 +435,17 @@ export default function PersonalPagina() {
     try {
       const rutTrabajador = obtenerRut(personalSeleccionado);
       const usuarioSesion = JSON.parse(localStorage.getItem('usuario') || '{}');
+      
+      
       let cuerpo = JSON.stringify(formulario);
       if (curriculum) {
         cuerpo = new FormData();
         for (const [campo, valor] of Object.entries(formulario)) {
-          cuerpo.append(campo, valor);
+          if (Array.isArray(valor)) {
+            cuerpo.append(campo, JSON.stringify(valor));
+          }else {
+            cuerpo.append(campo, valor);
+          }
         }
         cuerpo.append('curriculum', curriculum);
       }
@@ -790,6 +796,15 @@ export default function PersonalPagina() {
                   <strong>Evaluacion de desempeno:</strong>
                   <div>
                     {personalSeleccionado.evaluacionDesempeno || 'Sin calificar'}
+                  </div>
+                </div>
+
+                <div>
+                  <strong>Licencias:</strong>
+                  <div>
+                    {Array.isArray(personalSeleccionado.licencias) && personalSeleccionado.licencias.length > 0
+                      ? personalSeleccionado.licencias.join(', ')
+                      : 'Sin licencia de manejo'}
                   </div>
                 </div>
 

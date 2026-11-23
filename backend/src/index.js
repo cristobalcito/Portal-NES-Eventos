@@ -19,16 +19,20 @@ var alertasRouter = require('./rutas/alertasRutas');
 var catalogoRouter = require('./rutas/catalogoRutas');
 var usuariosRouter = require('./rutas/usuarioRutas');
 var planEspecificoRouter = require('./rutas/planEspecificoRutas');
+var vehiculoRutas = require('./rutas/vehiculoRutas');
 
 var app = express();
 
+// 1. Middlewares globales SIEMPRE primero
 app.use(cors());
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// 2. Rutas de la API
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/api/auth', authRouter);
@@ -41,7 +45,9 @@ app.use('/api/alertas', alertasRouter);
 app.use('/api/catalogo', catalogoRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/planes-especificos', planEspecificoRouter);
+app.use('/api/vehiculos', vehiculoRutas);
 
+// 3. Manejador 404 SIEMPRE al final de todas las rutas
 app.use(function(req, res, next) {
   next(createError(404));
 });

@@ -9,6 +9,7 @@ const cargos = ['Garzón', 'DJ', 'Coordinador', 'Chofer', 'Técnico', 'Operativo
 const estados = ['Disponible', 'No disponible', 'Por confirmar'];
 const experiencias = ['Sí', 'No', 'Sin registro'];
 const tallas = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const licenciasDisponibles = ['Clase B', 'Clase A2', 'Clase A3', 'Clase A4', 'Clase A5', 'Clase D'];
 const limiteCurriculum = 5 * 1024 * 1024;
 
 export default function ModalPersonalEventual({ isOpen, personalSeleccionado, onClose, onGuardar }) {
@@ -32,6 +33,9 @@ function Ficha({ persona, onClose, onGuardar }) {
     experiencia: experienciaAnterior ? '' : experienciaInicial,
     tallaDeRopa: persona.tallaDeRopa ?? ''
   }));
+  const [licencias, setLicencias] = useState(() =>
+    Array.isArray(persona.licencias) ? persona.licencias : []
+  );
   const [pago, setPago] = useState(() => leerPago(persona.datosDePago, persona));
   const [pagoEditado, setPagoEditado] = useState(false);
   const [curriculum, setCurriculum] = useState(null);
@@ -44,6 +48,14 @@ function Ficha({ persona, onClose, onGuardar }) {
   const [guardando, setGuardando] = useState(false);
   const entradaCurriculum = useRef(null);
   const asignado = /^Asignado a Evento #/i.test(disponibilidadInicial);
+
+  function alternarLicencia(licencia) {
+    setLicencias(actual =>
+      actual.includes(licencia)
+        ? actual.filter(item => item !== licencia)
+        : [...actual, licencia]
+    );
+  }
 
   function cambiarPago(campo, valor) {
     setPagoEditado(true);
@@ -110,7 +122,7 @@ function Ficha({ persona, onClose, onGuardar }) {
     if (guardando || errorAdjunto || !onGuardar) return;
     setGuardando(true);
     try {
-      const datos = { ...formulario, rol: formulario.rol.trim() };
+      const datos = { ...formulario, rol: formulario.rol.trim(), licencias };
       if (asignado || formulario.disponibilidad === disponibilidadInicial) delete datos.disponibilidad;
       if (!formulario.experiencia) delete datos.experiencia;
       if (pagoEditado) datos.datosDePago = JSON.stringify({ formato: 'transferencia-v1', ...pago });
@@ -157,6 +169,40 @@ function Ficha({ persona, onClose, onGuardar }) {
           {experienciaAnterior && !formulario.experiencia && (
             <small>Experiencia registrada anteriormente: {experienciaAnterior}</small>
           )}
+
+          <fieldset>
+            <legend>Licencias de conducir (opcional)</legend>
+            <div style={estilos.gridLicencias}>
+              {licenciasDisponibles.map(licencia => {
+                const marcada = licencias.includes(licencia);
+                return (
+                  <label
+                    key={licencia}
+                    style={{
+                      ...estilos.opcionLicencia,
+                      borderColor: marcada ? '#8a5b96' : '#ccc',
+                      backgroundColor: marcada ? '#f5eef7' : '#fff',
+                      fontWeight: marcada ? 'bold' : 'normal'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={marcada}
+                      onChange={() => alternarLicencia(licencia)}
+                      disabled={guardando}
+                    />
+                    <span>{licencia}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <small style={{ color: '#555', display: 'block', marginTop: '8px' }}>
+              {licencias.length > 0
+                ? `Seleccionadas: ${licencias.join(', ')}`
+                : 'Sin licencia de manejo seleccionada'}
+            </small>
+          </fieldset>
+
           <fieldset>
             <legend>Datos de transferencia</legend>
             <div style={estilos.columnas}>
@@ -310,6 +356,23 @@ const estilos = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: '15px'
+  },
+  gridLicencias: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '10px',
+    marginTop: '6px'
+  },
+  opcionLicencia: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    userSelect: 'none'
   },
   input: {
     padding: '10px',

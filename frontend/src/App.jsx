@@ -11,6 +11,7 @@ import EstadoEquiposPagina from './pages/EstadoEquiposPagina.jsx';
 import MantencionesPagina from './pages/MantencionesPagina.jsx';
 import EquiposArrendadosPagina from './pages/EquiposArrendadosPagina.jsx';
 import CampanaAlertas from './components/CampanaAlertas.jsx';
+import VehiculoPagina from './pages/vehiculoPagina.jsx';
 
 function App() {
     const [usuario, setUsuario] = useState(null);
@@ -119,6 +120,8 @@ function App() {
                 return <PersonalPagina {...propsDeNavegacion} />;
             case '/inventario':
                 return <InventarioPage {...propsDeNavegacion} />;
+            case '/vehiculos':
+                return <VehiculoPagina {...propsDeNavegacion} />;
             case '/usuarios':
                 if (rolDetectado !== 'GERENTE_GENERAL') {
                     return (
