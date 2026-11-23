@@ -156,7 +156,7 @@ export default function InicioPagina({ alIrALogin, alIrARegistro }) {
           </div>
           <div style={styles.footerContacto}>
             <span>Contacto: contacto@nes-eventos.cl</span>
-            <span>Portal de Gestión y Horario Compartido</span>
+            <span>Portal de Gestión para Clientes y Trabajadores</span>
           </div>
         </div>
       </footer>
@@ -200,6 +200,7 @@ const styles = {
     height: '44px',
     width: 'auto',
     objectFit: 'contain',
+    filter: 'box-shadow(0px 0px 15px rgba(150, 75, 150, 0.96))',
   },
   nombreMarca: {
     display: 'block',
