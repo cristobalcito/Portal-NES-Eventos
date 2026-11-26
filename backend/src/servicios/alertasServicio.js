@@ -2,71 +2,95 @@
 const prisma = require('../lib/prisma');
 
 const TIPO_ALERTA = 'RECORDATORIO_LOGISTICO';
+const DIAS_DE_AVISO = 3;
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+const formatoDiaSantiago = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Santiago',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
 
-// Obtiene la fecha actual de Chile, sin considerar la hora.
-const obtenerHoy = () => {
-  const partes = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Santiago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).formatToParts(new Date());
-
+// Representa cada día de Santiago a medianoche UTC para comparar fechas calendario.
+const obtenerDiaCalendario = (fecha) => {
+  const partes = formatoDiaSantiago.formatToParts(fecha);
   const obtener = (tipo) =>
     partes.find((parte) => parte.type === tipo).value;
 
-  return new Date(Date.UTC(
+  return Date.UTC(
     Number(obtener('year')),
     Number(obtener('month')) - 1,
     Number(obtener('day'))
-  ));
+  );
 };
 
-// Genera recordatorios logísticos tres días antes del evento.
-const generarAlertasLogisticas = async () => {
-  const fechaObjetivo = obtenerHoy();
-  fechaObjetivo.setUTCDate(fechaObjetivo.getUTCDate() + 3);
+const revisarEventos = async () => {
+  const hoy = obtenerDiaCalendario(new Date());
 
-  const fechaSiguiente = new Date(fechaObjetivo);
-  fechaSiguiente.setUTCDate(fechaSiguiente.getUTCDate() + 1);
-
-  // Buscar eventos programados para dentro de tres días.
+  // El margen UTC cubre cambios de huso horario. El filtro exacto se hace por día de Santiago.
   const eventos = await prisma.planEspecifico.findMany({
     where: {
       fecha: {
-        gte: fechaObjetivo,
-        lt: fechaSiguiente
+        gte: new Date(hoy - MS_POR_DIA),
+        lt: new Date(hoy + (DIAS_DE_AVISO + 2) * MS_POR_DIA)
       }
     }
   });
 
+  const eventosVigentes = [];
   for (const evento of eventos) {
+    const diasRestantes = (obtenerDiaCalendario(evento.fecha) - hoy) / MS_POR_DIA;
+    if (evento.estado === 'CANCELADO' || diasRestantes < 0 || diasRestantes > DIAS_DE_AVISO) {
+      continue;
+    }
+
+    const diaCercano = ['hoy', 'mañana'][diasRestantes];
+    const plazo = diaCercano
+      ? `El evento es ${diaCercano} ("${evento.descripcion}"). `
+      : `Faltan ${diasRestantes} días para el evento "${evento.descripcion}". `;
     const contenido =
-      `Faltan 3 días para el evento "${evento.descripcion}". ` +
+      plazo +
       `Revisar personal, transporte, equipamiento y montaje ` +
       `en ${evento.lugar}.`;
+    const clave = { planEspecificoId: evento.idPE, tipo: TIPO_ALERTA };
 
-    // Crear la alerta solo si aún no existe para ese evento.
-    await prisma.alerta.upsert({
-      where: {
-        planEspecificoId_tipo: {
-          planEspecificoId: evento.idPE,
-          tipo: TIPO_ALERTA
+    try {
+      await prisma.alerta.upsert({
+        where: { planEspecificoId_tipo: clave },
+        select: { idAL: true },
+        update: { contenido },
+        create: {
+          ...clave,
+          razon: 'Recordatorio logístico',
+          contenido
         }
-      },
-      update: {
-        contenido
-      },
-      create: {
-        razon: 'Recordatorio logístico',
-        contenido,
-        tipo: TIPO_ALERTA,
-        planEspecificoId: evento.idPE
-      }
+      });
+    } catch (error) {
+      // El evento pudo eliminarse o el aviso pudo crearse desde otro proceso.
+      if (error.code === 'P2003') continue;
+      if (error.code !== 'P2002') throw error;
+      const resultado = await prisma.alerta.updateMany({
+        where: clave,
+        data: { contenido }
+      });
+      if (resultado.count === 0) throw error;
+    }
+
+    eventosVigentes.push(evento.idPE);
+  }
+
+  return eventosVigentes;
+};
+
+let revisionEnCurso;
+const generarAlertasLogisticas = () => {
+  if (!revisionEnCurso) {
+    revisionEnCurso = revisarEventos().finally(() => {
+      revisionEnCurso = null;
     });
   }
 
-  return eventos.length;
+  return revisionEnCurso;
 };
 
 module.exports = {

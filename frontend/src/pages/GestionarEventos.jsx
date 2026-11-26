@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ModalAgregarEvento from '../components/ModalAgregarEvento.jsx';
 import ModalImportarEventos from '../components/ModalImportarEventos.jsx';
+import { notificarCambioAlertas } from '../servicios/alertasServicio.js';
 
 export default function GestionarEventos() {
   const [eventos, setEventos] = useState([]);
@@ -67,6 +68,7 @@ export default function GestionarEventos() {
     }
 
     const nuevo = datos.datos || datos;
+    notificarCambioAlertas();
     setEventos((anteriores) =>
       [...anteriores, nuevo].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
     );
@@ -130,6 +132,7 @@ export default function GestionarEventos() {
     }
 
     const editado = datos.evento || datos.datos || datos;
+    notificarCambioAlertas();
     setEventos((anteriores) =>
       anteriores
         .map((e) => ((e.idPE || e.id) === (editado.idPE || editado.id) ? editado : e))
@@ -190,6 +193,7 @@ export default function GestionarEventos() {
       }
 
       const restantes = eventos.filter((e) => (e.idPE || e.id) !== id);
+      notificarCambioAlertas();
       setEventos(restantes);
       if (eventoSeleccionado && (eventoSeleccionado.idPE || eventoSeleccionado.id) === id) {
         setEventoSeleccionado(restantes[0] || null);
@@ -219,6 +223,7 @@ export default function GestionarEventos() {
       [...anteriores, ...datos.creados].sort((a, b) => new Date(a.fecha) - new Date(b.fecha))
     );
 
+    if (datos.creados.length) notificarCambioAlertas();
     const rechazados = datos.errores.length > 0 ? ` ${datos.errores.length} fila(s) no se importaron por errores.` : '';
     mostrarMensaje(`Se importaron ${datos.creados.length} evento(s).${rechazados}`, 5000);
   };

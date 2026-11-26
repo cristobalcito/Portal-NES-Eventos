@@ -1,7 +1,13 @@
 
 import { clienteApi } from './api.js';
 
-// Obtener las alertas logísticas del sistema
+export const EVENTO_AVISOS_ACTUALIZADOS = 'avisos-operativos-actualizados';
+
+export function notificarCambioAlertas() {
+  window.dispatchEvent(new Event(EVENTO_AVISOS_ACTUALIZADOS));
+}
+
+// Obtener los recordatorios y avisos operativos
 export async function obtenerAlertasServicio() {
   return await clienteApi.get('/alertas');
 }

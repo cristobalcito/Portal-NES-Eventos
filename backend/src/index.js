@@ -5,7 +5,7 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var cors = require('cors');
 require('dotenv').config();
-require('./servicios/cronAlertas');
+const { revisarAlertasLogisticas } = require('./servicios/cronAlertas');
 
 var indexRouter = require('./rutas/index');
 var usersRouter = require('./rutas/users');
@@ -63,6 +63,7 @@ const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  revisarAlertasLogisticas();
 });
 
 module.exports = app;

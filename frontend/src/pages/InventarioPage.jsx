@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { notificarCambioAlertas } from '../servicios/alertasServicio.js';
 import {
   pedir, encabezadoAutorizacion, formatearFecha, Etiqueta
 } from '../servicios/inventarioLogisticaServicio.jsx';
@@ -137,6 +138,7 @@ export default function InventarioPage() {
       }
 
       setMensajeExito(data.mensaje);
+      notificarCambioAlertas();
       setTimeout(() => setMensajeExito(''), 4000);
       setMostrarModalReserva(false);
       cargarInventario();
@@ -176,6 +178,7 @@ export default function InventarioPage() {
       }
 
       setMensajeExito(`Producto "${data.producto}" ingresado exitosamente al inventario.`);
+      notificarCambioAlertas();
       setTimeout(() => setMensajeExito(''), 4000);
 
       setNuevoNombre('');

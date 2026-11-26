@@ -1,6 +1,7 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  EVENTO_AVISOS_ACTUALIZADOS,
   obtenerAlertasServicio,
   marcarAlertaLeidaServicio
 } from '../servicios/alertasServicio.js';
@@ -11,23 +12,46 @@ export default function CampanaAlertas() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [actualizandoId, setActualizandoId] = useState(null);
+  const cargaEnCursoRef = useRef(false);
+  const recargaPendienteRef = useRef(false);
 
-  const cargarAlertas = async () => {
+  const cargarAlertas = async (trasGuardar = false) => {
+    if (cargaEnCursoRef.current) {
+      if (trasGuardar) recargaPendienteRef.current = true;
+      return;
+    }
+    cargaEnCursoRef.current = true;
     setCargando(true);
     setError('');
 
     try {
       const respuesta = await obtenerAlertasServicio();
-      setAlertas(respuesta.datos || []);
+      setError(respuesta.aviso || '');
+      const nuevasAlertas = respuesta.datos || [];
+      setAlertas((anteriores) => {
+        // Un listado iniciado antes de marcar una alerta puede devolver su estado anterior.
+        const idsLeidos = new Set(anteriores.filter((alerta) => alerta.leida).map((alerta) => alerta.idAL));
+        return nuevasAlertas.map((alerta) =>
+          idsLeidos.has(alerta.idAL) ? { ...alerta, leida: true } : alerta
+        );
+      });
     } catch (err) {
       setError(err.message || 'No se pudieron cargar las alertas.');
     } finally {
+      cargaEnCursoRef.current = false;
       setCargando(false);
+      if (recargaPendienteRef.current) {
+        recargaPendienteRef.current = false;
+        cargarAlertas();
+      }
     }
   };
 
   useEffect(() => {
     cargarAlertas();
+    const refrescar = () => cargarAlertas(true);
+    window.addEventListener(EVENTO_AVISOS_ACTUALIZADOS, refrescar);
+    return () => window.removeEventListener(EVENTO_AVISOS_ACTUALIZADOS, refrescar);
   }, []);
 
   const marcarLeida = async (id) => {
@@ -51,7 +75,7 @@ export default function CampanaAlertas() {
     }
   };
 
-  const pendientes = alertas.filter((alerta) => !alerta.leida).length;
+  const pendientes = alertas.filter((alerta) => !alerta.leida && !alerta.resueltaEn).length;
 
   const formatearFecha = (fecha) => {
     if (!fecha) return 'Sin fecha';
@@ -80,10 +104,11 @@ export default function CampanaAlertas() {
       <button
         type="button"
         onClick={() => {
-          setAbierto((anterior) => !anterior);
+          setAbierto(!abierto);
+          if (!abierto) cargarAlertas();
         }}
         aria-expanded={abierto}
-        aria-label={`Notificaciones: ${pendientes} pendientes`}
+        aria-label={`Notificaciones: ${pendientes} pendientes de lectura`}
         style={{
           padding: '10px 14px',
           backgroundColor: '#f1f5f9',
@@ -126,7 +151,7 @@ export default function CampanaAlertas() {
 
             <button
               type="button"
-              onClick={cargarAlertas}
+              onClick={() => cargarAlertas()}
               disabled={cargando}
               style={{ cursor: 'pointer' }}
             >
@@ -144,7 +169,7 @@ export default function CampanaAlertas() {
             <p>Cargando alertas...</p>
           ) : alertas.length === 0 ? (
             <p style={{ color: '#64748b' }}>
-              No tienes alertas logísticas registradas.
+              No tienes alertas registradas.
             </p>
           ) : (
             alertas.map((alerta) => (
@@ -153,12 +178,17 @@ export default function CampanaAlertas() {
                 style={{
                   padding: '12px',
                   marginBottom: '10px',
-                  backgroundColor: alerta.leida ? '#f8fafc' : '#eff6ff',
+                  backgroundColor: alerta.leida || alerta.resueltaEn ? '#f8fafc' : '#eff6ff',
                   border: '1px solid #e2e8f0',
                   borderRadius: '8px'
                 }}
               >
                 <strong>{alerta.razon}</strong>
+                {alerta.claveIncidencia && (
+                  <small style={{ display: 'block', marginTop: '4px', color: '#475569' }}>
+                    {alerta.resueltaEn ? `Resuelta el ${formatearFecha(alerta.resueltaEn)}` : 'Incidencia activa'}
+                  </small>
+                )}
 
                 <p style={{ margin: '8px 0', fontSize: '14px' }}>
                   {alerta.contenido}

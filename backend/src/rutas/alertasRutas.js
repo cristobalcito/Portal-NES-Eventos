@@ -17,7 +17,7 @@ const permitirGestionAlertas = autorizarRoles(
   'PERSONAL_OPERACIONES'
 );
 
-// Consultar alertas logísticas
+// Consultar recordatorios y avisos operativos
 router.get(
   '/',
   autenticarToken,

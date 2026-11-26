@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ModalMantencion from '../components/ModalMantencion.jsx';
+import { notificarCambioAlertas } from '../servicios/alertasServicio.js';
 import {
   pedir, encabezadoAutorizacion, obtenerUsuarioSesion,
   formatearFecha, formatearPesos, estilos, Etiqueta
@@ -67,6 +68,7 @@ export default function MantencionesPagina() {
       });
       mostrarMensaje(`"${nueva.inventario.producto}" enviado a mantención (${nueva.cantidad} unidad/es).`);
     }
+    notificarCambioAlertas();
     await cargarDatos();
   };
 
@@ -81,6 +83,7 @@ export default function MantencionesPagina() {
       setFichaAbierta(null);
       setConfirmandoRetorno(false);
       mostrarMensaje(`"${finalizada.inventario.producto}" vuelve a estar disponible en el inventario.`);
+      notificarCambioAlertas();
       await cargarDatos();
     } catch (err) {
       setErrorFicha(err.message);

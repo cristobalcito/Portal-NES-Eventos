@@ -149,8 +149,11 @@ model Alerta {
   tipo             String          @default("GENERAL")
   leida            Boolean         @default(false)
   creadaEn         DateTime        @default(now())
+  claveIncidencia  String?
+  resueltaEn       DateTime?
 
   @@unique([planEspecificoId, tipo])
+  @@index([tipo, resueltaEn])
 }
 
 model Inventario {
