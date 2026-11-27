@@ -15,6 +15,19 @@ const crearProducto = async (req, res, next) => {
   try {
     const { producto, marca, stock, disponible, ocupado, mantencion } = req.body;
 
+    const camposNumericos = { stock, disponible, ocupado, mantencion };
+    const todosValidos = Object.values(camposNumericos).every((valor) =>
+      Number.isInteger(Number(valor)) && Number(valor) >= 0
+    );
+
+    if (!producto || typeof producto !== 'string' || !producto.trim()) {
+      return res.status(400).json({ error: 'El nombre del producto es obligatorio' });
+    }
+
+    if (!todosValidos) {
+      return res.status(400).json({ error: 'Stock, disponible, ocupado y mantención deben ser enteros mayores o iguales a 0' });
+    }
+
     const nuevoProducto = await prisma.inventario.create({
       data: {
         producto,

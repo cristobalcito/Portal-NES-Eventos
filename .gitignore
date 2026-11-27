@@ -245,3 +245,5 @@ out/
 .docusaurus
 
 .svelte-kit
+backend/reporte-pruebas.txt
+backend/ANEXO_PRUEBAS_API.tex

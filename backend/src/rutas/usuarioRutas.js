@@ -7,11 +7,14 @@ var {
   eliminarUsuario 
 } = require('../controladores/usuarioControlador');
 var { verificarGerenteGeneral } = require('../middlewares/verificarGerenteGeneral');
+var { autenticarToken, autorizarRoles } = require('../middlewares/auth');
+
+var permitirGestionUsuarios = autorizarRoles('GERENTE_GENERAL');
 
 // Todas las rutas quedan protegidas exclusivamente para el GERENTE_GENERAL
-router.get('/', verificarGerenteGeneral, obtenerUsuarios);
-router.post('/', verificarGerenteGeneral, crearUsuario);
-router.put('/:rut', verificarGerenteGeneral, modificarUsuario);
-router.delete('/:rut', verificarGerenteGeneral, eliminarUsuario);
+router.get('/', autenticarToken, permitirGestionUsuarios, obtenerUsuarios);
+router.post('/', autenticarToken, permitirGestionUsuarios, crearUsuario);
+router.put('/:rut', autenticarToken, permitirGestionUsuarios, modificarUsuario);
+router.delete('/:rut', autenticarToken, permitirGestionUsuarios, eliminarUsuario);
 
 module.exports = router;
